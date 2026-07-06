@@ -1,0 +1,59 @@
+{
+  "expo": {
+    "name": "FullDelivery",
+    "slug": "full-delivery",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "fulldelivery",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.fulldelivery.app",
+      "config": {
+        "googleMapsApiKey": "YOUR_GOOGLE_MAPS_KEY"
+      },
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "FullDelivery needs your location to track deliveries.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "FullDelivery needs your location for real-time driver tracking."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "package": "com.fulldelivery.app",
+      "config": {
+        "googleMaps": {
+          "apiKey": "YOUR_GOOGLE_MAPS_KEY"
+        }
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "FOREGROUND_SERVICE_LOCATION"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-notifications",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "FullDelivery needs your location to track deliveries.",
+          "locationWhenInUsePermission": "FullDelivery needs your location for real-time driver tracking."
+        }
+      ]
+    ],
+    "extra": {
+      "supabaseUrl": "",
+      "supabaseAnonKey": ""
+    }
+  }
+}
