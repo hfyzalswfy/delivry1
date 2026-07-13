@@ -44,12 +44,20 @@
       "expo-router",
       "expo-notifications",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "FullDelivery needs access to your photos to upload delivery proof images.",
+          "cameraPermission": "FullDelivery needs access to your camera to capture delivery proof photos."
+        }
+      ],
+      [
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "FullDelivery needs your location to track deliveries.",
           "locationWhenInUsePermission": "FullDelivery needs your location for real-time driver tracking."
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "extra": {
       "supabaseUrl": "",

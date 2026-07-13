@@ -1,12 +1,12 @@
 import { Stack } from 'expo-router';
-import { colors } from '../../../src/theme/colors';
+import { theme } from '../../../src/theme/driver-theme';
 
 export default function NotificationsLayout() {
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: colors.surface },
-        headerTintColor: colors.text,
+        headerStyle: { backgroundColor: theme.bg },
+        headerTintColor: theme.white,
         headerTitleStyle: { fontWeight: '600' },
         headerShadowVisible: false,
       }}

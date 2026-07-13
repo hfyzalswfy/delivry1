@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
 import { useAuthStore } from '../../src/store/auth-store';
 import { supabase } from '../../src/lib/supabase';
@@ -10,6 +10,8 @@ export default function SetupScreen() {
   const refreshProfile = useAuthStore((s) => s.refreshProfile);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
 
   const [storeName, setStoreName] = useState('');
   const [storePhone, setStorePhone] = useState('');
@@ -28,35 +30,35 @@ export default function SetupScreen() {
     setLoading(true);
 
     if (role === 'store') {
-      if (!storeName) { setError('Store name is required'); setLoading(false); return; }
+      if (!storeName) { setError('Store name is required'); if (mountedRef.current) setLoading(false); return; }
       const { error: err } = await supabase.from('stores').insert({
         owner_id: profile!.id,
         name: storeName,
         phone: storePhone || null,
         address: storeAddress || null,
       });
-      if (err) { setError(err.message); setLoading(false); return; }
+      if (err) { if (mountedRef.current) { setError(err.message); setLoading(false); } return; }
     } else if (role === 'driver') {
-      if (!vehiclePlate) { setError('Vehicle plate is required'); setLoading(false); return; }
+      if (!vehiclePlate) { setError('Vehicle plate is required'); if (mountedRef.current) setLoading(false); return; }
       const { error: err } = await supabase.from('drivers').insert({
         profile_id: profile!.id,
         vehicle_type: vehicleType,
         vehicle_plate: vehiclePlate,
         availability: 'offline',
       });
-      if (err) { setError(err.message); setLoading(false); return; }
+      if (err) { if (mountedRef.current) { setError(err.message); setLoading(false); } return; }
     } else if (role === 'customer') {
-      if (!customerName || !customerPhone) { setError('Name and phone are required'); setLoading(false); return; }
+      if (!customerName || !customerPhone) { setError('Name and phone are required'); if (mountedRef.current) setLoading(false); return; }
       const { error: err } = await supabase.from('customers').insert({
         profile_id: profile!.id,
         full_name: customerName,
         phone: customerPhone,
       });
-      if (err) { setError(err.message); setLoading(false); return; }
+      if (err) { if (mountedRef.current) { setError(err.message); setLoading(false); } return; }
     }
 
     await refreshProfile();
-    setLoading(false);
+    if (mountedRef.current) setLoading(false);
   };
 
   if (!role) return null;

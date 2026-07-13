@@ -1,5 +1,6 @@
 export type UserRole = 'customer' | 'driver' | 'store' | 'admin';
-export type OrderStatus = 'pending' | 'published' | 'driver_accepted' | 'driver_arrived_store' | 'picked_up' | 'on_the_way' | 'delivered' | 'cancelled';
+export type OrderStatus = 'pending' | 'published' | 'driver_accepted' | 'driver_arrived_store' | 'picked_up' | 'on_the_way' | 'driver_arrived_destination' | 'delivered' | 'cancelled';
+export type DeliveryIssueType = 'customer_unavailable' | 'wrong_address' | 'customer_refused' | 'store_issue' | 'vehicle_issue' | 'emergency' | 'other';
 export type NotificationType = 'order_update' | 'new_message' | 'driver_assignment' | 'nearby_order' | 'complaint_update' | 'system';
 export type DriverAvailability = 'online' | 'offline' | 'busy';
 export type PaymentMethod = 'cash' | 'card' | 'wallet';
@@ -7,6 +8,7 @@ export type OrderPriority = 'normal' | 'express' | 'scheduled';
 export type MessageType = 'text' | 'image' | 'voice' | 'video' | 'file' | 'location' | 'system';
 export type WalletTransactionType = 'deposit' | 'withdrawal' | 'payment' | 'refund' | 'fee';
 export type WalletTransactionStatus = 'pending' | 'completed' | 'failed' | 'cancelled';
+export type DocumentStatus = 'pending' | 'approved' | 'rejected';
 
 export interface Profiles {
   id: string;
@@ -107,6 +109,7 @@ export interface DeliveryOrders {
   delivery_fee: number;
   platform_commission: number;
   driver_earnings: number;
+  reward_bonus: number;
   payment_method: PaymentMethod;
   status: OrderStatus;
   priority: OrderPriority;
@@ -116,6 +119,8 @@ export interface DeliveryOrders {
   otp_expires_at: string | null;
   otp_verified_at: string | null;
   proof_image_url: string | null;
+  proof_signature_url: string | null;
+  driver_arrived_destination_at: string | null;
   published_at: string | null;
   driver_accepted_at: string | null;
   driver_arrived_store_at: string | null;
@@ -146,6 +151,17 @@ export interface OrderStatusHistory {
   changed_by: string | null;
   note: string | null;
   created_at: string;
+}
+
+export interface DeliveryIssues {
+  id: string;
+  order_id: string;
+  driver_id: string;
+  issue_type: DeliveryIssueType;
+  description: string | null;
+  status: string;
+  created_at: string;
+  resolved_at: string | null;
 }
 
 export interface DriverLocations {
@@ -215,6 +231,21 @@ export interface WalletTransactions {
   created_at: string;
 }
 
+export interface DriverDocuments {
+  id: string;
+  driver_id: string;
+  document_type: string;
+  document_url: string;
+  status: DocumentStatus;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  rejection_reason: string | null;
+  expires_at: string | null;
+  deleted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface PushTokens {
   id: string;
   profile_id: string;
@@ -236,6 +267,8 @@ export interface Database {
       delivery_orders: { Row: DeliveryOrders; Insert: Partial<DeliveryOrders>; Update: Partial<DeliveryOrders> };
       order_assignments: { Row: OrderAssignments; Insert: Partial<OrderAssignments>; Update: Partial<OrderAssignments> };
       order_status_history: { Row: OrderStatusHistory; Insert: Partial<OrderStatusHistory>; Update: Partial<OrderStatusHistory> };
+      delivery_issues: { Row: DeliveryIssues; Insert: Partial<DeliveryIssues>; Update: Partial<DeliveryIssues> };
+      driver_documents: { Row: DriverDocuments; Insert: Partial<DriverDocuments>; Update: Partial<DriverDocuments> };
       driver_locations: { Row: DriverLocations; Insert: Partial<DriverLocations>; Update: Partial<DriverLocations> };
       conversations: { Row: Conversations; Insert: Partial<Conversations>; Update: Partial<Conversations> };
       conversation_participants: { Row: ConversationParticipants; Insert: Partial<ConversationParticipants>; Update: Partial<ConversationParticipants> };
@@ -251,6 +284,10 @@ export interface Database {
       is_admin: { Args: Record<string, never>; Returns: boolean };
       add_wallet_transaction: { Args: Record<string, never>; Returns: unknown };
       find_customer_by_phone: { Args: { p_phone: string }; Returns: string };
+      accept_order: { Args: { p_order_id: string; p_driver_id: string }; Returns: Record<string, unknown> };
+      arrive_at_destination: { Args: { p_order_id: string; p_driver_id: string }; Returns: Record<string, unknown> };
+      complete_delivery: { Args: { p_order_id: string; p_driver_id: string; p_verification_method: string; p_verification_data?: string }; Returns: Record<string, unknown> };
+      report_delivery_issue: { Args: { p_order_id: string; p_driver_id: string; p_issue_type: DeliveryIssueType; p_description?: string }; Returns: Record<string, unknown> };
     };
     Enums: {
       user_role: UserRole;
@@ -262,6 +299,8 @@ export interface Database {
       notification_type: NotificationType;
       wallet_transaction_type: WalletTransactionType;
       wallet_transaction_status: WalletTransactionStatus;
+      delivery_issue_type: DeliveryIssueType;
+      document_status: DocumentStatus;
     };
     CompositeTypes: Record<string, never>;
   };

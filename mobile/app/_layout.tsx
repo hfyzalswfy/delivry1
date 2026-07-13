@@ -5,6 +5,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from '../src/store/auth-store';
 import { useAuthGuard } from '../src/hooks/use-auth';
 import { ActivityIndicator, View } from 'react-native';
+import { useSettingsStore } from '../src/store/settings-store';
+import { ThemeProvider } from '../src/theme/ThemeProvider';
+import '../src/i18n/i18n';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 2, staleTime: 30_000 } },
@@ -18,8 +21,11 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 function RootLayoutInner() {
   const initialize = useAuthStore((s) => s.initialize);
   const isLoading = useAuthStore((s) => s.isLoading);
+  const loadSettings = useSettingsStore((s) => s.load);
 
   useEffect(() => { initialize(); }, []);
+
+  useEffect(() => { loadSettings(); }, []);
 
   if (isLoading) {
     return (
@@ -30,10 +36,12 @@ function RootLayoutInner() {
   }
 
   return (
-    <AuthGate>
-      <Stack screenOptions={{ headerShown: false }} />
-      <StatusBar style="dark" />
-    </AuthGate>
+    <ThemeProvider>
+      <AuthGate>
+        <Stack screenOptions={{ headerShown: false }} />
+        <StatusBar style="dark" />
+      </AuthGate>
+    </ThemeProvider>
   );
 }
 

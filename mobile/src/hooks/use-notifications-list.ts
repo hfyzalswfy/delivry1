@@ -10,6 +10,8 @@ export function useNotificationsList() {
   const [loading, setLoading] = useState(true);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const channelKeyRef = useRef(0);
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -73,6 +75,7 @@ export function useNotificationsList() {
       .from('notifications')
       .update({ read_at: now })
       .eq('id', notifId);
+    if (!mountedRef.current) return;
     setNotifications((prev) =>
       prev.map((n) => (n.id === notifId ? { ...n, read_at: now } : n)),
     );

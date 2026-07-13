@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/auth-store';
 import { DeliveryOrders } from '../types/database';
 
-const ACTIVE_STATUSES = ['driver_accepted', 'driver_arrived_store', 'picked_up', 'on_the_way'];
+const ACTIVE_STATUSES = ['driver_accepted', 'driver_arrived_store', 'picked_up', 'on_the_way', 'driver_arrived_destination'];
 const COMPLETED_STATUSES = ['delivered'];
 const CANCELLED_STATUSES = ['cancelled'];
 

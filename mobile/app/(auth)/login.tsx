@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Link, router } from 'expo-router';
 import { useAuthStore } from '../../src/store/auth-store';
@@ -11,12 +11,15 @@ export default function LoginScreen() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const signIn = useAuthStore((s) => s.signIn);
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
 
   const handleLogin = async () => {
     setError('');
     if (!email || !password) { setError('Please fill in all fields'); return; }
     setLoading(true);
     const result = await signIn(email, password);
+    if (!mountedRef.current) return;
     setLoading(false);
     if (result.error) { setError(result.error); return; }
   };

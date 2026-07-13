@@ -17,6 +17,7 @@ export function useConversations() {
 
   useEffect(() => {
     if (!user || !profile) return;
+    let cancelled = false;
 
     const fetchConversations = async () => {
       setLoading(true);
@@ -25,6 +26,8 @@ export function useConversations() {
         .from('conversation_participants')
         .select('conversation_id')
         .eq('profile_id', user.id);
+
+      if (cancelled) return;
 
       if (!participations || participations.length === 0) {
         setConversations([]);
@@ -40,6 +43,8 @@ export function useConversations() {
         .in('id', convIds)
         .order('created_at', { ascending: false });
 
+      if (cancelled) return;
+
       if (!convs) {
         setLoading(false);
         return;
@@ -51,6 +56,8 @@ export function useConversations() {
         .from('delivery_orders')
         .select('id, order_number, customer_name')
         .in('id', orderIds);
+
+      if (cancelled) return;
 
       const orderMap = new Map((orders || []).map((o) => [o.id, o]));
 
@@ -72,6 +79,8 @@ export function useConversations() {
     };
 
     fetchConversations();
+
+    return () => { cancelled = true; };
   }, [user?.id, profile?.id]);
 
   return { conversations, loading };

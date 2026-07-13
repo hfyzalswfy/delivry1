@@ -1,197 +1,352 @@
-import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, SafeAreaView } from 'react-native';
-import { useLocalSearchParams, Stack, Link } from 'expo-router';
-import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, SafeAreaView, Linking, Alert } from 'react-native';
+import { useLocalSearchParams, Stack, router } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../../src/lib/supabase';
 import { useAuthStore } from '../../../src/store/auth-store';
 import { useDriverLocation } from '../../../src/hooks/use-driver-location';
-import { colors } from '../../../src/theme/colors';
-import { spacing, fontSize, borderRadius } from '../../../src/theme/spacing';
-import { DeliveryOrders } from '../../../src/types/database';
+import { DeliveryOrders, Stores } from '../../../src/types/database';
 import { calculateDistance, calculateETA } from '../../../src/lib/geo';
 
-const statusColors: Record<string, string> = {
-  pending: colors.statusDraft,
-  driver_accepted: colors.statusAssigned,
-  driver_arrived_store: colors.statusPublished,
-  picked_up: colors.statusPickedUp,
-  on_the_way: colors.statusInTransit,
-  delivered: colors.statusDelivered,
-  cancelled: colors.statusCancelled,
+const C = {
+  screenBg: '#0E1212',
+  cardBg: '#1A1D28',
+  white: '#FFFFFF',
+  nearWhite: '#F3F4F6',
+  label: '#6B7280',
+  green: '#22C55E',
+  greenDark: '#064E3B',
+  greenLight: '#4ADE80',
+  redDark: '#7F1D1D',
+  border: '#2A2D3A',
+  divider: '#2A2D3A',
+  callBg: '#064E3B',
+  badgeGray: '#2A2D3A',
+  cardRadius: 12,
 };
+
+const BADGE: Record<string, { label: string; bg: string; text: string }> = {
+  pending: { label: 'Pending', bg: '#1E3A5F', text: '#60A5FA' },
+  published: { label: 'Available', bg: '#064E3B', text: '#4ADE80' },
+  driver_accepted: { label: 'Accepted', bg: '#064E3B', text: '#4ADE80' },
+  driver_arrived_store: { label: 'At Store', bg: '#713F12', text: '#FBBF24' },
+  picked_up: { label: 'Picked Up', bg: '#1E3A5F', text: '#60A5FA' },
+  on_the_way: { label: 'On The Way', bg: '#064E3B', text: '#4ADE80' },
+  driver_arrived_destination: { label: 'Arrived', bg: '#713F12', text: '#FBBF24' },
+  delivered: { label: 'Delivered', bg: '#065F46', text: '#6EE7B7' },
+  cancelled: { label: 'Cancelled', bg: '#7F1D1D', text: '#FCA5A5' },
+};
+
+function fmtDate(s: string): string {
+  const d = new Date(s);
+  const n = new Date();
+  const t = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  if (d.toDateString() === n.toDateString()) return `Today, ${t}`;
+  const y = new Date(n); y.setDate(y.getDate() - 1);
+  if (d.toDateString() === y.toDateString()) return `Yesterday, ${t}`;
+  return `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${t}`;
+}
+
+function fmtCurr(v: number): string {
+  return `${v.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} YER`;
+}
+
+function fmtPay(m: string): string {
+  const map: Record<string, string> = { cash: 'Cash on Delivery', card: 'Card', wallet: 'Wallet' };
+  return map[m] || m;
+}
+
+function payIcon(m: string): string {
+  const map: Record<string, string> = { cash: '\u{1F4B5}', card: '\u{1F4B3}', wallet: '\u{1F45B}' };
+  return map[m] || '\u{1F4B5}';
+}
+
+function fmtDist(km: number): string {
+  return km < 1 ? `${(km * 1000).toFixed(0)} m` : `${km.toFixed(1)} km`;
+}
+
+function fmtETA(min: number): string {
+  return min >= 60 ? `${Math.floor(min / 60)}h ${min % 60}m` : `${min} min`;
+}
 
 export default function DriverOrderDetailScreen() {
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
   const profile = useAuthStore((s) => s.profile);
+
   const [order, setOrder] = useState<DeliveryOrders | null>(null);
+  const [store, setStore] = useState<Stores | null>(null);
+  const [driverLat, setDriverLat] = useState<number | null>(null);
+  const [driverLng, setDriverLng] = useState<number | null>(null);
+  const [driverId, setDriverId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [assignment, setAssignment] = useState<{ id: string } | null>(null);
-  const [driverId, setDriverId] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
 
-  const shouldTrack =
-    order &&
-    driverId &&
-    order.assigned_driver_id === driverId &&
-    ['driver_accepted', 'driver_arrived_store', 'picked_up', 'on_the_way'].includes(order.status);
-
+  const shouldTrack = !!(order && driverId && order.assigned_driver_id === driverId
+    && ['driver_accepted', 'driver_arrived_store', 'picked_up', 'on_the_way', 'driver_arrived_destination'].includes(order.status));
   useDriverLocation(shouldTrack ? orderId : undefined);
 
   useEffect(() => {
     let cancelled = false;
-    let orderChannel: ReturnType<typeof supabase.channel> | null = null;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    const init = async () => {
-      const { data: orderData } = await supabase.from('delivery_orders').select('*').eq('id', orderId).single();
-      if (orderData && !cancelled) setOrder(orderData);
+    (async () => {
+      const { data: o } = await supabase.from('delivery_orders').select('*').eq('id', orderId).single();
+      if (!o || cancelled) { if (!cancelled) setLoading(false); return; }
+      if (!cancelled) setOrder(o);
 
-      if (cancelled) return;
-      const { data: driver } = await supabase.from('drivers').select('id').eq('profile_id', profile?.id).single();
-      if (driver) {
-        setDriverId(driver.id);
-        const { data: ass } = await supabase.from('order_assignments').select('id').eq('order_id', orderId).eq('driver_id', driver.id).maybeSingle();
-        if (ass && !cancelled) setAssignment(ass);
+      const { data: s } = await supabase.from('stores').select('*').eq('id', o.store_id).single();
+      if (s && !cancelled) setStore(s);
+
+      const { data: d } = await supabase.from('drivers').select('*').eq('profile_id', profile?.id).single();
+      if (d && !cancelled) {
+        setDriverId(d.id);
+        setDriverLat(d.current_latitude);
+        setDriverLng(d.current_longitude);
+        const { data: a } = await supabase.from('order_assignments').select('id').eq('order_id', orderId).eq('driver_id', d.id).maybeSingle();
+        if (a) setAssignment(a);
       }
 
       if (cancelled) { setLoading(false); return; }
 
-      orderChannel = supabase.channel(`driver-order-${orderId}`)
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'delivery_orders', filter: `id=eq.${orderId}` }, (payload) => {
-          setOrder(payload.new as DeliveryOrders);
+      channel = supabase.channel(`order-${orderId}`)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'delivery_orders', filter: `id=eq.${orderId}` }, (p) => {
+          setOrder(p.new as DeliveryOrders);
         })
         .subscribe();
 
       if (!cancelled) setLoading(false);
-    };
-
-    init();
+    })();
 
     return () => {
       cancelled = true;
-      if (orderChannel) supabase.removeChannel(orderChannel);
+      if (channel) supabase.removeChannel(channel);
     };
   }, [orderId]);
 
-  const acceptOrder = async () => {
+  const refetchOrder = useCallback(async () => {
+    if (!orderId) return;
+    const { data: o } = await supabase.from('delivery_orders').select('*').eq('id', orderId).single();
+    if (o) setOrder(o);
+  }, [orderId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      refetchOrder();
+    }, [refetchOrder])
+  );
+
+  const distKm = useMemo(() => {
+    if (!order || driverLat == null || driverLng == null) return null;
+    return calculateDistance(driverLat, driverLng, order.pickup_latitude, order.pickup_longitude);
+  }, [order, driverLat, driverLng]);
+
+  const etaMin = useMemo(() => (distKm != null ? calculateETA(distKm) : null), [distKm]);
+
+  const badge = order ? (BADGE[order.status] || BADGE.pending) : null;
+  const bonus = order?.reward_bonus ?? 0;
+  const total = (order?.driver_earnings ?? 0) + bonus;
+
+  if (loading) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: C.screenBg }}>
+        <Stack.Screen options={{ title: 'Order Details', headerTitleStyle: { fontWeight: '700', color: '#fff' } }} />
+        <View style={S.center}><ActivityIndicator size="large" color={C.green} /></View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!order) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: C.screenBg }}>
+        <Stack.Screen options={{ title: 'Order Details', headerTitleStyle: { fontWeight: '700', color: '#fff' } }} />
+        <View style={S.center}><Text style={{ color: C.label, fontSize: 16 }}>Order not found</Text></View>
+      </SafeAreaView>
+    );
+  }
+
+  const statusFlow = ['driver_accepted', 'driver_arrived_store', 'picked_up', 'on_the_way', 'driver_arrived_destination', 'delivered'];
+  const nextIdx = statusFlow.indexOf(order.status) + 1;
+  const isMine = !!(driverId && order.assigned_driver_id === driverId);
+
+  const updateStatus = async (ns: string) => {
     setActionLoading(true);
-    const { data: driver } = await supabase.from('drivers').select('id').eq('profile_id', profile?.id).single();
-    if (!driver) { setActionLoading(false); return; }
-
-    const { error: assignError } = await supabase.from('order_assignments').insert({
-      order_id: orderId,
-      driver_id: driver.id,
-      status: 'accepted',
-      responded_at: new Date().toISOString(),
-    });
-    if (assignError) { setActionLoading(false); return; }
-
-    setAssignment({ id: 'temp' });
-    setActionLoading(false);
-  };
-
-  const updateStatus = async (newStatus: string) => {
-    setActionLoading(true);
-    const timestamps: Record<string, string> = {
+    const ts: Record<string, string> = {
       driver_arrived_store: 'driver_arrived_store_at',
       picked_up: 'picked_up_at',
       on_the_way: 'on_the_way_at',
       delivered: 'delivered_at',
     };
-    const update: Record<string, unknown> = { status: newStatus };
-    if (timestamps[newStatus]) update[timestamps[newStatus]] = new Date().toISOString();
-    await supabase.from('delivery_orders').update(update).eq('id', orderId);
-    setOrder((prev) => prev ? { ...prev, status: newStatus as any } : null);
-    setActionLoading(false);
+    const u: Record<string, unknown> = { status: ns };
+    if (ts[ns]) u[ts[ns]] = new Date().toISOString();
+    await supabase.from('delivery_orders').update(u).eq('id', orderId);
+    if (mountedRef.current) setActionLoading(false);
   };
 
-  if (loading) return <ActivityIndicator size="large" style={{ flex: 1 }} />;
-  if (!order) return <Text style={{ textAlign: 'center', marginTop: 50 }}>Order not found</Text>;
+  const openMap = () => {
+    if (!order) { Alert.alert('Error', 'Order data not available'); return; }
+    if (driverLat == null || driverLng == null) { Alert.alert('Location Unavailable', 'Your current location is not available. Please wait for GPS to activate.'); return; }
+    if (!order.pickup_latitude || !order.pickup_longitude) { Alert.alert('Missing Destination', 'Pickup coordinates are not set for this order.'); return; }
+    Linking.openURL(`https://www.google.com/maps/dir/?api=1&origin=${driverLat},${driverLng}&destination=${order.pickup_latitude},${order.pickup_longitude}&travelmode=driving`).catch(() => Alert.alert('Error', 'Could not open maps. Please check your navigation app.'));
+  };
 
-  const statusFlow = ['driver_accepted', 'driver_arrived_store', 'picked_up', 'on_the_way', 'delivered'];
-  const nextStatusIndex = statusFlow.indexOf(order.status) + 1;
+  const callCustomer = () => {
+    if (!order) return;
+    Linking.openURL(`tel:${order.customer_phone}`);
+  };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <Stack.Screen options={{ title: `Order #${order.order_number}` }} />
-      <ScrollView style={styles.container}>
-        <View style={[styles.statusBadge, { backgroundColor: (statusColors[order.status] || colors.statusDraft) + '20' }]}>
-          <Text style={[styles.statusText, { color: statusColors[order.status] || colors.statusDraft }]}>
-            {order.status.toUpperCase()}
-          </Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.screenBg }}>
+      <Stack.Screen options={{ title: 'Order Details', headerTitleStyle: { fontWeight: '700', color: '#fff' } }} />
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+        {/* ────────── ORDER INFO CARD ────────── */}
+        <View style={S.card}>
+          <View style={S.row}>
+            <Text style={S.lbl}>Order ID</Text>
+            <Text style={S.val}>{order.order_number}</Text>
+          </View>
+          <View style={S.row}>
+            <Text style={S.lbl}>Status</Text>
+            {badge && (
+              <View style={[S.badge, { backgroundColor: badge.bg }]}>
+                <Text style={[S.badgeText, { color: badge.text }]}>{badge.label}</Text>
+              </View>
+            )}
+          </View>
+          <View style={[S.row, { borderBottomWidth: 0 }]}>
+            <Text style={S.lbl}>Created</Text>
+            <Text style={S.val}>{fmtDate(order.created_at)}</Text>
+          </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Customer</Text>
-        <Text style={styles.value}>{order.customer_name} — {order.customer_phone}</Text>
+        {/* ────────── ROUTE CARD ────────── */}
+        <View style={S.card}>
+          <Text style={S.cardTitle}>Route</Text>
 
-        <Text style={styles.sectionTitle}>Pickup</Text>
-        <Text style={styles.value}>{order.pickup_address}</Text>
-
-        <Text style={styles.sectionTitle}>Delivery</Text>
-        <Text style={styles.value}>{order.delivery_address}</Text>
-        {order.delivery_landmark ? <Text style={styles.value}>Landmark: {order.delivery_landmark}</Text> : null}
-
-        {order.shipment_description ? (
-          <>
-            <Text style={styles.sectionTitle}>Description</Text>
-            <Text style={styles.value}>{order.shipment_description}</Text>
-          </>
-        ) : null}
-
-        {order.pickup_latitude && order.pickup_longitude && order.delivery_latitude && order.delivery_longitude ? (
-          <View style={styles.mapCard}>
-            <Text style={styles.mapTitle}>Route</Text>
-            {(() => {
-              const dist = calculateDistance(order.pickup_latitude, order.pickup_longitude, order.delivery_latitude, order.delivery_longitude);
-              const eta = calculateETA(dist);
-              return <Text style={styles.etaText}>{dist < 1 ? `${(dist * 1000).toFixed(0)} m` : `${dist.toFixed(1)} km`} — ~{eta} min</Text>;
-            })()}
-            <MapView
-              style={styles.map}
-              provider={PROVIDER_DEFAULT}
-              mapType="standard"
-              loadingEnabled
-              initialRegion={{
-                latitude: (order.pickup_latitude + order.delivery_latitude) / 2,
-                longitude: (order.pickup_longitude + order.delivery_longitude) / 2,
-                latitudeDelta: Math.abs(order.pickup_latitude - order.delivery_latitude) * 1.5 + 0.01,
-                longitudeDelta: Math.abs(order.pickup_longitude - order.delivery_longitude) * 1.5 + 0.01,
-              }}
-            >
-              <Marker coordinate={{ latitude: order.pickup_latitude, longitude: order.pickup_longitude }} title="Pickup" pinColor="green" />
-              <Marker coordinate={{ latitude: order.delivery_latitude, longitude: order.delivery_longitude }} title="Delivery" pinColor="red" />
-              <Polyline
-                coordinates={[
-                  { latitude: order.pickup_latitude, longitude: order.pickup_longitude },
-                  { latitude: order.delivery_latitude, longitude: order.delivery_longitude },
-                ]}
-                strokeColor={colors.primary}
-                strokeWidth={3}
-              />
-            </MapView>
+          {/* Pickup */}
+          <View style={S.rtSec}>
+            <View style={S.rtLeft}>
+              <Text style={{ fontSize: 20, color: C.green, marginTop: 2 }}>{'\u{1F3EA}'}</Text>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={S.rtLabel}>PICKUP</Text>
+                <Text style={S.rtTitle}>{store?.name || 'Store'}</Text>
+                <Text style={S.rtAddr}>{order.pickup_address}</Text>
+              </View>
+            </View>
+            <TouchableOpacity onPress={openMap} style={S.mapBtn} activeOpacity={0.7}>
+              <Text style={{ fontSize: 12, color: C.green }}>{'\u{1F5FA}'}</Text>
+              <Text style={S.mapBtnText}>Map</Text>
+            </TouchableOpacity>
           </View>
-        ) : null}
 
-        <Link href={`/(app)/(chat)/${orderId}`} style={styles.chatButton}>
-          <Text style={styles.chatButtonText}>💬 Chat</Text>
-        </Link>
+          {/* Drop-off */}
+          <View style={S.rtSec}>
+            <View style={S.dropPin}>
+              <Text style={{ fontSize: 13, color: C.white }}>{'\u{1F4CD}'}</Text>
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={S.rtLabel}>DROP-OFF</Text>
+              <Text style={S.rtTitle}>{order.delivery_address}</Text>
+            </View>
+          </View>
 
-        <Text style={styles.price}>${order.delivery_fee.toFixed(2)}</Text>
+          {/* Trip info */}
+          <View style={S.divider} />
+          <View style={S.tripRow}>
+            <View style={S.tripItem}>
+              <Text style={{ fontSize: 14, color: C.label }}>{'\u{1F4CD}'}</Text>
+              <Text style={S.tripText}>{distKm != null ? fmtDist(distKm) : '—'}</Text>
+            </View>
+            <View style={S.tripItem}>
+              <Text style={{ fontSize: 14, color: C.label }}>{'\u{23F1}'}</Text>
+              <Text style={S.tripText}>{etaMin != null ? fmtETA(etaMin) : '—'}</Text>
+            </View>
+          </View>
+        </View>
 
-        {order.status === 'pending' && !assignment && (
-          <TouchableOpacity style={styles.acceptButton} onPress={acceptOrder} disabled={actionLoading}>
-            {actionLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.acceptButtonText}>Accept Order</Text>}
+        {/* ────────── CUSTOMER DETAILS CARD ────────── */}
+        <View style={S.card}>
+          <Text style={S.cardTitle}>Customer Details</Text>
+          <View style={S.custRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={S.custName}>{order.customer_name}</Text>
+              <Text style={S.custPhone}>{order.customer_phone}</Text>
+            </View>
+            <TouchableOpacity onPress={callCustomer} style={S.callBtn} activeOpacity={0.7}>
+              <Text style={{ fontSize: 22, color: C.green }}>{'\u{1F4DE}'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* ────────── PAYMENT DETAILS CARD ────────── */}
+        <View style={S.card}>
+          <Text style={S.cardTitle}>Payment Details</Text>
+
+          <View style={S.payRow}>
+            <Text style={S.lbl}>Delivery Fee</Text>
+            <Text style={S.val}>{fmtCurr(order.delivery_fee)}</Text>
+          </View>
+
+          {bonus > 0 && (
+            <View style={S.payRow}>
+              <Text style={S.lbl}>Reward Bonus</Text>
+              <Text style={S.val}>{fmtCurr(bonus)}</Text>
+            </View>
+          )}
+
+          <View style={[S.payRow, { marginTop: 8 }]}>
+            <Text style={S.totalLbl}>Total Earnings</Text>
+            <Text style={S.totalVal}>{fmtCurr(total)}</Text>
+          </View>
+
+          <View style={S.payMethodBadge}>
+            <Text style={{ fontSize: 18, color: C.label }}>{payIcon(order.payment_method)}</Text>
+            <Text style={S.payMethodText}>{fmtPay(order.payment_method)}</Text>
+          </View>
+        </View>
+
+        {/* ────────── ACTION BUTTONS ────────── */}
+        {isMine && nextIdx < statusFlow.length && (
+          statusFlow[nextIdx] === 'picked_up' ? (
+            <TouchableOpacity style={S.btnPrimary} onPress={() => router.push(`/(app)/(driver)/pickup-confirmation?orderId=${orderId}`)}>
+              <Text style={S.btnPrimaryText}>Confirm Pickup</Text>
+            </TouchableOpacity>
+          ) : statusFlow[nextIdx] === 'on_the_way' ? (
+            <TouchableOpacity style={S.btnPrimary} onPress={() => router.push(`/(app)/(driver)/en-route?orderId=${orderId}`)}>
+              <Text style={S.btnPrimaryText}>Start Delivery</Text>
+            </TouchableOpacity>
+          ) : statusFlow[nextIdx] === 'driver_arrived_destination' ? (
+            <TouchableOpacity style={S.btnPrimary} onPress={() => router.push(`/(app)/(driver)/en-route?orderId=${orderId}`)}>
+              <Text style={S.btnPrimaryText}>Start Delivery</Text>
+            </TouchableOpacity>
+          ) : statusFlow[nextIdx] === 'delivered' ? (
+            <TouchableOpacity style={S.btnPrimary} onPress={() => router.push(`/(app)/(driver)/confirm-delivery?orderId=${orderId}`)}>
+              <Text style={S.btnPrimaryText}>Complete Delivery</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={S.btnPrimary} onPress={() => updateStatus(statusFlow[nextIdx])} disabled={actionLoading}>
+              {actionLoading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={S.btnPrimaryText}>Mark as {statusFlow[nextIdx].replace(/_/g, ' ')}</Text>}
+            </TouchableOpacity>
+          )
+        )}
+
+        {isMine && order.status === 'delivered' && (
+          <TouchableOpacity style={S.btnPrimary} onPress={() => router.push(`/(app)/(driver)/delivery-summary?orderId=${orderId}`)}>
+            <Text style={S.btnPrimaryText}>View Delivery Summary</Text>
           </TouchableOpacity>
         )}
 
-        {assignment && nextStatusIndex < statusFlow.length && (
-          <TouchableOpacity style={styles.actionButton} onPress={() => updateStatus(statusFlow[nextStatusIndex])} disabled={actionLoading}>
-            {actionLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.actionButtonText}>Mark as {statusFlow[nextStatusIndex].replace('_', ' ')}</Text>}
+        {order.status === 'pending' && !order.assigned_driver_id && (
+          <TouchableOpacity style={S.btnPrimary} onPress={() => router.push(`/(app)/(driver)/confirm-acceptance?orderId=${orderId}`)}>
+            <Text style={S.btnPrimaryText}>Accept Order</Text>
           </TouchableOpacity>
         )}
 
-        {order.status === 'driver_accepted' && (
-          <TouchableOpacity style={styles.cancelButton} onPress={() => updateStatus('pending')} disabled={actionLoading}>
-            <Text style={styles.cancelButtonText}>Cancel Assignment</Text>
+        {isMine && order.status === 'driver_accepted' && (
+          <TouchableOpacity style={S.btnSecondary} onPress={() => updateStatus('pending')} disabled={actionLoading}>
+            <Text style={S.btnSecondaryText}>Cancel Assignment</Text>
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -199,23 +354,137 @@ export default function DriverOrderDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background, padding: spacing.md },
-  statusBadge: { alignSelf: 'flex-start', borderRadius: borderRadius.full, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, marginBottom: spacing.lg },
-  statusText: { fontSize: fontSize.sm, fontWeight: '700' },
-  sectionTitle: { fontSize: fontSize.sm, fontWeight: '700', color: colors.textSecondary, marginTop: spacing.md, marginBottom: spacing.xs, textTransform: 'uppercase' },
-  value: { fontSize: fontSize.md, color: colors.text, marginBottom: spacing.xs },
-  price: { fontSize: fontSize.xl, fontWeight: '700', color: colors.primary, marginTop: spacing.md },
-  mapCard: { backgroundColor: colors.surface, borderRadius: borderRadius.md, padding: spacing.md, borderWidth: 1, borderColor: colors.border, marginTop: spacing.md },
-  mapTitle: { fontSize: fontSize.md, fontWeight: '600', color: colors.text },
-  etaText: { fontSize: fontSize.sm, fontWeight: '600', color: colors.secondary, marginVertical: spacing.xs },
-  map: { width: '100%', height: 250, borderRadius: borderRadius.md, marginTop: spacing.sm },
-  chatButton: { backgroundColor: colors.surface, borderRadius: borderRadius.md, padding: spacing.md, alignItems: 'center', marginTop: spacing.md, borderWidth: 1, borderColor: colors.border },
-  chatButtonText: { color: colors.primary, fontSize: fontSize.md, fontWeight: '600' },
-  acceptButton: { backgroundColor: colors.secondary, borderRadius: borderRadius.md, padding: spacing.md, alignItems: 'center', marginTop: spacing.xl },
-  acceptButtonText: { color: '#fff', fontSize: fontSize.md, fontWeight: '600' },
-  actionButton: { backgroundColor: colors.primary, borderRadius: borderRadius.md, padding: spacing.md, alignItems: 'center', marginTop: spacing.md },
-  actionButtonText: { color: '#fff', fontSize: fontSize.md, fontWeight: '600', textTransform: 'capitalize' },
-  cancelButton: { backgroundColor: colors.dangerLight, borderRadius: borderRadius.md, padding: spacing.md, alignItems: 'center', marginTop: spacing.sm },
-  cancelButtonText: { color: colors.danger, fontSize: fontSize.md, fontWeight: '600' },
+const S = StyleSheet.create({
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+
+  card: {
+    backgroundColor: C.cardBg,
+    borderRadius: C.cardRadius,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+
+  cardTitle: {
+    color: C.white,
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: C.divider,
+  },
+
+  lbl: { color: C.label, fontSize: 14 },
+  val: { color: C.nearWhite, fontSize: 14, fontWeight: '600' },
+
+  badge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  badgeText: { fontSize: 12, fontWeight: '700' },
+
+  // Route
+  rtSec: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  rtLeft: { flexDirection: 'row', flex: 1, alignItems: 'flex-start' },
+  rtLabel: { color: C.label, fontSize: 11, fontWeight: '600', letterSpacing: 0.5, marginBottom: 2 },
+  rtTitle: { color: C.white, fontSize: 15, fontWeight: '700', marginBottom: 2 },
+  rtAddr: { color: C.label, fontSize: 13 },
+
+  mapBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.greenDark,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4,
+    marginLeft: 12,
+    marginTop: 2,
+  },
+  mapBtnText: { color: C.green, fontSize: 13, fontWeight: '600' },
+
+  dropPin: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: C.redDark,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+
+  divider: { height: 1, backgroundColor: C.divider, marginBottom: 12 },
+
+  tripRow: { flexDirection: 'row', justifyContent: 'flex-start', gap: 24 },
+  tripItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  tripText: { color: C.nearWhite, fontSize: 13, fontWeight: '500' },
+
+  // Customer
+  custRow: { flexDirection: 'row', alignItems: 'center' },
+  custName: { color: C.white, fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  custPhone: { color: C.label, fontSize: 14 },
+  callBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: C.callBg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 16,
+  },
+
+  // Payment
+  payRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  totalLbl: { color: C.white, fontSize: 15, fontWeight: '700' },
+  totalVal: { color: C.green, fontSize: 16, fontWeight: '700' },
+
+  payMethodBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.badgeGray,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginTop: 12,
+    gap: 8,
+  },
+  payMethodText: { color: C.nearWhite, fontSize: 14, fontWeight: '500' },
+
+  // Buttons
+  btnPrimary: {
+    backgroundColor: C.greenDark,
+    borderRadius: C.cardRadius,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  btnPrimaryText: { color: C.greenLight, fontSize: 16, fontWeight: '700' },
+
+  btnSecondary: {
+    backgroundColor: C.badgeGray,
+    borderRadius: C.cardRadius,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  btnSecondaryText: { color: C.label, fontSize: 16, fontWeight: '600' },
 });
