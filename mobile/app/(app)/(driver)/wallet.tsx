@@ -74,60 +74,67 @@ export default function WalletScreen() {
     if (!profile) return;
     cancelledRef.current = false;
 
-    const { data: driver } = await supabase
-      .from('drivers')
-      .select('id')
-      .eq('profile_id', profile.id)
-      .single();
+    try {
+      const { data: driver } = await supabase
+        .from('drivers')
+        .select('id')
+        .eq('profile_id', profile.id)
+        .maybeSingle();
 
-    if (!driver || cancelledRef.current) return;
-    const dId = driver.id;
-    if (!cancelledRef.current) setDriverId(dId);
+      if (!driver || cancelledRef.current) return;
+      const dId = driver.id;
+      if (!cancelledRef.current) setDriverId(dId);
 
-    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-    const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - weekStart.getDay()); weekStart.setHours(0, 0, 0, 0);
-    const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+      const { data: wallet } = await supabase
+        .from('wallets')
+        .select('id, balance')
+        .eq('profile_id', profile.id)
+        .maybeSingle();
 
-    const [
-      { data: wallet },
-      { data: txData },
-      { data: todayData },
-      { data: weekData },
-      { data: monthData },
-    ] = await Promise.all([
-      supabase.from('wallets').select('balance').eq('profile_id', profile.id).single(),
-      supabase.from('wallet_transactions')
-        .select('id, amount, type, description, reference_type, created_at')
-        .eq('wallet_id', (await supabase.from('wallets').select('id').eq('profile_id', profile.id).single()).data?.id || '')
-        .order('created_at', { ascending: false })
-        .limit(50),
-      supabase.from('delivery_orders').select('driver_earnings').eq('assigned_driver_id', dId).eq('status', 'delivered').gte('delivered_at', todayStart.toISOString()),
-      supabase.from('delivery_orders').select('driver_earnings').eq('assigned_driver_id', dId).eq('status', 'delivered').gte('delivered_at', weekStart.toISOString()),
-      supabase.from('delivery_orders').select('driver_earnings').eq('assigned_driver_id', dId).eq('status', 'delivered').gte('delivered_at', monthStart.toISOString()),
-    ]);
+      if (cancelledRef.current) return;
 
-    if (cancelledRef.current) return;
+      if (wallet) {
+        setBalance(wallet.balance);
 
-    if (wallet) setBalance(wallet.balance);
+        const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+        const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - weekStart.getDay()); weekStart.setHours(0, 0, 0, 0);
+        const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
 
-    if (txData) {
-      setTransactions(txData as Transaction[]);
+        const [
+          { data: txData },
+          { data: todayData },
+          { data: weekData },
+          { data: monthData },
+        ] = await Promise.all([
+          supabase.from('wallet_transactions')
+            .select('id, amount, type, description, reference_type, created_at')
+            .eq('wallet_id', wallet.id)
+            .order('created_at', { ascending: false })
+            .limit(50),
+          supabase.from('delivery_orders').select('driver_earnings').eq('assigned_driver_id', dId).eq('status', 'delivered').gte('delivered_at', todayStart.toISOString()),
+          supabase.from('delivery_orders').select('driver_earnings').eq('assigned_driver_id', dId).eq('status', 'delivered').gte('delivered_at', weekStart.toISOString()),
+          supabase.from('delivery_orders').select('driver_earnings').eq('assigned_driver_id', dId).eq('status', 'delivered').gte('delivered_at', monthStart.toISOString()),
+        ]);
+
+        if (cancelledRef.current) return;
+
+        if (txData) setTransactions(txData as Transaction[]);
+        if (todayData) setTodayEarnings({
+          deliveries: todayData.length,
+          earnings: todayData.reduce((s, r) => s + (r.driver_earnings ?? 0), 0),
+        });
+        if (weekData) setWeekEarnings({
+          deliveries: weekData.length,
+          earnings: weekData.reduce((s, r) => s + (r.driver_earnings ?? 0), 0),
+        });
+        if (monthData) setMonthEarnings({
+          deliveries: monthData.length,
+          earnings: monthData.reduce((s, r) => s + (r.driver_earnings ?? 0), 0),
+        });
+      }
+    } catch {
+      // fetch failed — show default state
     }
-
-    if (todayData) setTodayEarnings({
-      deliveries: todayData.length,
-      earnings: todayData.reduce((s, r) => s + (r.driver_earnings ?? 0), 0),
-    });
-
-    if (weekData) setWeekEarnings({
-      deliveries: weekData.length,
-      earnings: weekData.reduce((s, r) => s + (r.driver_earnings ?? 0), 0),
-    });
-
-    if (monthData) setMonthEarnings({
-      deliveries: monthData.length,
-      earnings: monthData.reduce((s, r) => s + (r.driver_earnings ?? 0), 0),
-    });
 
     if (!cancelledRef.current) setLoading(false);
   }, [profile]);

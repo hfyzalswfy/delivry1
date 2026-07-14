@@ -98,27 +98,31 @@ export default function DriverHomeScreen() {
     cancelledRef.current = false;
 
     const init = async () => {
-      const driver = await fetchDriverData();
-      if (!driver || cancelledRef.current) return;
-      await Promise.all([fetchStats(driver.id), fetchAvailableOrders()]);
-      if (cancelledRef.current) return;
+      try {
+        const driver = await fetchDriverData();
+        if (!driver || cancelledRef.current) return;
+        await Promise.all([fetchStats(driver.id), fetchAvailableOrders()]);
+        if (cancelledRef.current) return;
 
-      channelRef.current = supabase.channel('driver-home-orders')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'delivery_orders', filter: 'status=eq.pending' }, (payload) => {
-          setAvailableOrders((prev) => [payload.new as DeliveryOrders, ...prev]);
-        })
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'delivery_orders' }, (payload) => {
-          const updated = payload.new as DeliveryOrders;
-          setAvailableOrders((prev) => {
-            if (updated.status !== 'pending') return prev.filter((o) => o.id !== updated.id);
-            if (prev.some((o) => o.id === updated.id)) return prev.map((o) => o.id === updated.id ? updated : o);
-            return [updated, ...prev];
-          });
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_orders', filter: `assigned_driver_id=eq.${driver.id}` }, () => {
-          fetchStats(driver.id);
-        })
-        .subscribe();
+        channelRef.current = supabase.channel('driver-home-orders')
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'delivery_orders', filter: 'status=eq.pending' }, (payload) => {
+            setAvailableOrders((prev) => [payload.new as DeliveryOrders, ...prev]);
+          })
+          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'delivery_orders' }, (payload) => {
+            const updated = payload.new as DeliveryOrders;
+            setAvailableOrders((prev) => {
+              if (updated.status !== 'pending') return prev.filter((o) => o.id !== updated.id);
+              if (prev.some((o) => o.id === updated.id)) return prev.map((o) => o.id === updated.id ? updated : o);
+              return [updated, ...prev];
+            });
+          })
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_orders', filter: `assigned_driver_id=eq.${driver.id}` }, () => {
+            fetchStats(driver.id);
+          })
+          .subscribe();
+      } catch {
+        // init failed — proceed to setLoading(false)
+      }
 
       if (!cancelledRef.current) setLoading(false);
     };
@@ -134,15 +138,24 @@ export default function DriverHomeScreen() {
   useFocusEffect(
     useCallback(() => {
       if (!driverId) return;
-      fetchStats(driverId);
-      fetchAvailableOrders();
+      (async () => {
+        try {
+          await Promise.all([fetchStats(driverId), fetchAvailableOrders()]);
+        } catch {
+          // background refresh failed
+        }
+      })();
     }, [driverId, fetchStats, fetchAvailableOrders])
   );
 
   const onRefresh = useCallback(async () => {
     if (!driverId) return;
     setRefreshing(true);
-    await Promise.all([fetchStats(driverId), fetchAvailableOrders()]);
+    try {
+      await Promise.all([fetchStats(driverId), fetchAvailableOrders()]);
+    } catch {
+      // manual refresh failed
+    }
     setRefreshing(false);
   }, [driverId, fetchStats, fetchAvailableOrders]);
 
@@ -195,7 +208,7 @@ function Header({ name, unreadCount, isOnline, onToggleOnline }: { name: string;
     <View style={headerStyles.container}>
       <View style={headerStyles.topRow}>
         <Text style={headerStyles.greeting}>Hi, {name} 👋</Text>
-        <TouchableOpacity style={headerStyles.bellWrap} onPress={() => router.push('/(app)/(driver)/orders')}>
+        <TouchableOpacity style={headerStyles.bellWrap} onPress={() => router.push('/(app)/(notifications)')}>
           <Text style={headerStyles.bellIcon}>🔔</Text>
           {unreadCount > 0 && (
             <View style={headerStyles.badge}>
@@ -320,7 +333,7 @@ function QuickActions() {
     { icon: '🗺️', label: 'Browse Orders', onPress: () => router.push('/(app)/(driver)/orders') },
     { icon: '👛', label: 'Wallet', onPress: () => router.push('/(app)/(driver)/wallet') },
     { icon: '🎁', label: 'Rewards', onPress: () => router.push('/(app)/(driver)/rewards') },
-    { icon: '🕐', label: 'History', onPress: () => router.push('/(app)/(driver)/orders') },
+    { icon: '🕐', label: 'My Orders', onPress: () => router.push('/(app)/(driver)/orders') },
   ];
 
   return (

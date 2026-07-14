@@ -6,8 +6,6 @@ export type DriverAvailability = 'online' | 'offline' | 'busy';
 export type PaymentMethod = 'cash' | 'card' | 'wallet';
 export type OrderPriority = 'normal' | 'express' | 'scheduled';
 export type MessageType = 'text' | 'image' | 'voice' | 'video' | 'file' | 'location' | 'system';
-export type WalletTransactionType = 'deposit' | 'withdrawal' | 'payment' | 'refund' | 'fee';
-export type WalletTransactionStatus = 'pending' | 'completed' | 'failed' | 'cancelled';
 export type DocumentStatus = 'pending' | 'approved' | 'rejected';
 
 export interface Profiles {
@@ -214,7 +212,8 @@ export interface Wallets {
   id: string;
   profile_id: string;
   balance: number;
-  is_active: boolean;
+  currency: string;
+  is_frozen: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -223,8 +222,7 @@ export interface WalletTransactions {
   id: string;
   wallet_id: string;
   amount: number;
-  transaction_type: WalletTransactionType;
-  status: WalletTransactionStatus;
+  type: string;
   reference_type: string | null;
   reference_id: string | null;
   description: string | null;
@@ -282,7 +280,7 @@ export interface Database {
     Functions: {
       user_role: { Args: Record<string, never>; Returns: UserRole };
       is_admin: { Args: Record<string, never>; Returns: boolean };
-      add_wallet_transaction: { Args: Record<string, never>; Returns: unknown };
+      add_wallet_transaction: { Args: { p_wallet_id: string; p_amount: number; p_type: string; p_description?: string; p_reference_type?: string; p_reference_id?: string }; Returns: string };
       find_customer_by_phone: { Args: { p_phone: string }; Returns: string };
       accept_order: { Args: { p_order_id: string; p_driver_id: string }; Returns: Record<string, unknown> };
       arrive_at_destination: { Args: { p_order_id: string; p_driver_id: string }; Returns: Record<string, unknown> };
@@ -297,8 +295,6 @@ export interface Database {
       order_priority: OrderPriority;
       message_type: MessageType;
       notification_type: NotificationType;
-      wallet_transaction_type: WalletTransactionType;
-      wallet_transaction_status: WalletTransactionStatus;
       delivery_issue_type: DeliveryIssueType;
       document_status: DocumentStatus;
     };

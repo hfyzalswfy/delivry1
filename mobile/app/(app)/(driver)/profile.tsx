@@ -63,7 +63,7 @@ export default function DriverProfileScreen() {
     { icon: '\u{1F4C4}', labelKey: 'profile.documents', route: '/(app)/(driver)/documents' },
     { icon: '\u{1F512}', labelKey: 'accountStatus.title', route: '/(app)/(driver)/account-status' },
     { icon: '\u{1F3C6}', labelKey: 'rewards.title', route: '/(app)/(driver)/rewards' },
-    { icon: '\u{1F4CB}', labelKey: 'notifications.title', route: '/(app)/(notifications)' },
+    { icon: '\u{1F4CB}', labelKey: 'notifications.title', route: '/(app)/(notifications)' /* outside driver tab */ },
     { icon: '\u{2699}\u{FE0F}', labelKey: 'settings.title', route: '/(app)/(driver)/settings' },
     { icon: '\u{1F4F1}', labelKey: 'settings.language', route: '/(app)/(driver)/language' },
   ];

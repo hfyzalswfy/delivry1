@@ -78,7 +78,8 @@ export default function DeliverySummaryScreen() {
   }, [orderId]);
 
   const handleGoHome = () => {
-    router.replace('/(app)/(driver)');
+    if (router.canGoBack()) router.back();
+    else router.replace('/(app)/(driver)');
   };
 
   if (loading) {

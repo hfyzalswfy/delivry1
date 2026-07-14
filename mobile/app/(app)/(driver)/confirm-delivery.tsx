@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, SafeAreaView, Alert, Image } from 'react-native';
 import { useLocalSearchParams, router, Stack } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -36,6 +36,7 @@ function fmtCurr(v: number): string {
 export default function ConfirmDeliveryScreen() {
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
   const profile = useAuthStore((s) => s.profile);
+  const navigatedRef = useRef(false);
 
   const [order, setOrder] = useState<DeliveryOrders | null>(null);
   const [store, setStore] = useState<Stores | null>(null);
@@ -50,6 +51,12 @@ export default function ConfirmDeliveryScreen() {
   const hasOtp = !!(order?.otp_code);
   const bonus = order?.reward_bonus ?? 0;
   const total = (order?.driver_earnings ?? 0) + bonus;
+
+  const goToSummary = () => {
+    if (navigatedRef.current) return;
+    navigatedRef.current = true;
+    router.replace(`/(app)/(driver)/delivery-summary?orderId=${orderId}`);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -74,6 +81,12 @@ export default function ConfirmDeliveryScreen() {
         return;
       }
 
+      // If already delivered, navigate immediately
+      if (o.status === 'delivered') {
+        if (!cancelled) { goToSummary(); }
+        return;
+      }
+
       if (o.status !== 'driver_arrived_destination') {
         if (!cancelled) { setAccessError(`This screen is only available when the order status is "Arrived at Destination". Current status: ${o.status.replace(/_/g, ' ')}`); setLoading(false); }
         return;
@@ -95,8 +108,8 @@ export default function ConfirmDeliveryScreen() {
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'delivery_orders', filter: `id=eq.${orderId}` }, (p) => {
           const updated = p.new as DeliveryOrders;
           setOrder(updated);
-          if (updated.status === 'delivered') {
-            router.replace(`/(app)/(driver)/delivery-summary?orderId=${orderId}`);
+          if (updated.status === 'delivered' && !cancelled) {
+            goToSummary();
           }
         })
         .subscribe();
@@ -129,7 +142,9 @@ export default function ConfirmDeliveryScreen() {
       const result = await completeDelivery(orderId, driverId, method, data);
 
       setCompleting(false);
-      if (!result.success) {
+      if (result.success) {
+        goToSummary();
+      } else {
         Alert.alert('Delivery Failed', result.error);
       }
     } catch {

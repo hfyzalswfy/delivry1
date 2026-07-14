@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Switch, SafeAreaView } from 'react-native';
 import { Stack } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -6,6 +7,9 @@ import { useTheme } from '../../../src/theme/ThemeProvider';
 export default function PrivacyScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
+  const [dataSharing, setDataSharing] = useState(false);
+  const [locationTracking, setLocationTracking] = useState(true);
+  const [analytics, setAnalytics] = useState(true);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
@@ -19,7 +23,7 @@ export default function PrivacyScreen() {
               <Text style={[S.label, { color: theme.white }]}>{t('privacy.dataSharing')}</Text>
               <Text style={[S.hint, { color: theme.gray }]}>{t('privacy.dataSharingDesc')}</Text>
             </View>
-            <Switch value={false} trackColor={{ false: theme.border, true: theme.green }} thumbColor={theme.white} />
+            <Switch value={dataSharing} onValueChange={setDataSharing} trackColor={{ false: theme.border, true: theme.green }} thumbColor={theme.white} />
           </View>
           <View style={[S.divider, { backgroundColor: theme.border }]} />
           <View style={S.row}>
@@ -27,7 +31,7 @@ export default function PrivacyScreen() {
               <Text style={[S.label, { color: theme.white }]}>{t('privacy.locationTracking')}</Text>
               <Text style={[S.hint, { color: theme.gray }]}>{t('privacy.locationTrackingDesc')}</Text>
             </View>
-            <Switch value={true} trackColor={{ false: theme.border, true: theme.green }} thumbColor={theme.white} />
+            <Switch value={locationTracking} onValueChange={setLocationTracking} trackColor={{ false: theme.border, true: theme.green }} thumbColor={theme.white} />
           </View>
           <View style={[S.divider, { backgroundColor: theme.border }]} />
           <View style={S.row}>
@@ -35,7 +39,7 @@ export default function PrivacyScreen() {
               <Text style={[S.label, { color: theme.white }]}>{t('privacy.analytics')}</Text>
               <Text style={[S.hint, { color: theme.gray }]}>{t('privacy.analyticsDesc')}</Text>
             </View>
-            <Switch value={true} trackColor={{ false: theme.border, true: theme.green }} thumbColor={theme.white} />
+            <Switch value={analytics} onValueChange={setAnalytics} trackColor={{ false: theme.border, true: theme.green }} thumbColor={theme.white} />
           </View>
         </View>
       </ScrollView>

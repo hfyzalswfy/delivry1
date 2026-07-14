@@ -370,6 +370,7 @@
     "fileTooLarge": "The selected file exceeds the size limit.",
     "unsupportedFormat": "This file format is not supported.",
     "storageNotConfigured": "Storage is not configured. Please contact support.",
-    "uploadTimeout": "Upload timed out. Please try again."
+    "uploadTimeout": "Upload timed out. Please try again.",
+    "fileNotFound": "File not found"
   }
 }

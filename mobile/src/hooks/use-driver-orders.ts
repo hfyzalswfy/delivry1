@@ -19,16 +19,20 @@ export function useDriverOrders() {
   const fetchOrders = useCallback(async () => {
     if (!driverIdRef.current) return;
 
-    const { data } = await supabase
-      .from('delivery_orders')
-      .select('*')
-      .eq('assigned_driver_id', driverIdRef.current)
-      .order('created_at', { ascending: false });
+    try {
+      const { data } = await supabase
+        .from('delivery_orders')
+        .select('*')
+        .eq('assigned_driver_id', driverIdRef.current)
+        .order('created_at', { ascending: false });
 
-    if (data && !cancelledRef.current) {
-      setActiveOrders(data.filter((o) => ACTIVE_STATUSES.includes(o.status)));
-      setCompletedOrders(data.filter((o) => COMPLETED_STATUSES.includes(o.status)));
-      setCancelledOrders(data.filter((o) => CANCELLED_STATUSES.includes(o.status)));
+      if (data && !cancelledRef.current) {
+        setActiveOrders(data.filter((o) => ACTIVE_STATUSES.includes(o.status)));
+        setCompletedOrders(data.filter((o) => COMPLETED_STATUSES.includes(o.status)));
+        setCancelledOrders(data.filter((o) => CANCELLED_STATUSES.includes(o.status)));
+      }
+    } catch {
+      // network or auth error — leave current data intact
     }
   }, []);
 
@@ -39,29 +43,33 @@ export function useDriverOrders() {
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     (async () => {
-      const { data: driver } = await supabase
-        .from('drivers')
-        .select('id')
-        .eq('profile_id', profile.id)
-        .single();
+      try {
+        const { data: driver } = await supabase
+          .from('drivers')
+          .select('id')
+          .eq('profile_id', profile.id)
+          .single();
 
-      if (!driver || cancelledRef.current) return;
-      driverIdRef.current = driver.id;
+        if (!driver || cancelledRef.current) return;
+        driverIdRef.current = driver.id;
 
-      await fetchOrders();
+        await fetchOrders();
 
-      if (cancelledRef.current) return;
+        if (cancelledRef.current) return;
 
-      channel = supabase.channel(`driver-my-orders-${driver.id}`)
-        .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table: 'delivery_orders',
-          filter: `assigned_driver_id=eq.${driver.id}`,
-        }, () => {
-          fetchOrders();
-        })
-        .subscribe();
+        channel = supabase.channel(`driver-my-orders-${driver.id}`)
+          .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'delivery_orders',
+            filter: `assigned_driver_id=eq.${driver.id}`,
+          }, () => {
+            fetchOrders();
+          })
+          .subscribe();
+      } catch {
+        // init failed — proceed to setLoading(false)
+      }
 
       if (!cancelledRef.current) setLoading(false);
     })();

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, SafeAreaView } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { supabase } from '../../../src/lib/supabase';
 import { useAuthStore } from '../../../src/store/auth-store';
 import { DriverDocuments } from '../../../src/types/database';
@@ -150,9 +150,7 @@ export default function AccountStatusScreen() {
           return (
             <TouchableOpacity
               style={S.docCard}
-              onPress={() => {
-                /* Navigate to documents screen for upload */
-              }}
+              onPress={() => router.push('/(app)/(driver)/documents')}
               activeOpacity={0.7}
             >
               <View style={S.docLeft}>

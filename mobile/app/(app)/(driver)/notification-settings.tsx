@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Switch, SafeAreaView } from 'react-native';
 import { Stack } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -6,7 +7,8 @@ import { useTheme } from '../../../src/theme/ThemeProvider';
 export default function NotificationSettingsScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
-  const switches = { push: true, email: true, sms: false, orderUpdates: true, promotional: false };
+  const [switches, setSwitches] = useState<Record<string, boolean>>({ push: true, email: true, sms: false, orderUpdates: true, promotional: false });
+  const toggle = (key: string) => setSwitches((prev) => ({ ...prev, [key]: !prev[key] }));
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
@@ -18,7 +20,7 @@ export default function NotificationSettingsScreen() {
               <Text style={[S.label, { color: theme.white }]}>{t('notificationSettings.pushNotifications')}</Text>
               <Text style={[S.hint, { color: theme.gray }]}>{t('notificationSettings.pushDesc')}</Text>
             </View>
-            <Switch value={switches.push} trackColor={{ false: theme.border, true: theme.green }} thumbColor={theme.white} />
+            <Switch value={switches.push} onValueChange={() => toggle('push')} trackColor={{ false: theme.border, true: theme.green }} thumbColor={theme.white} />
           </View>
           <View style={[S.divider, { backgroundColor: theme.border }]} />
           <View style={S.row}>
@@ -26,7 +28,7 @@ export default function NotificationSettingsScreen() {
               <Text style={[S.label, { color: theme.white }]}>{t('notificationSettings.emailNotifications')}</Text>
               <Text style={[S.hint, { color: theme.gray }]}>{t('notificationSettings.emailDesc')}</Text>
             </View>
-            <Switch value={switches.email} trackColor={{ false: theme.border, true: theme.green }} thumbColor={theme.white} />
+            <Switch value={switches.email} onValueChange={() => toggle('email')} trackColor={{ false: theme.border, true: theme.green }} thumbColor={theme.white} />
           </View>
           <View style={[S.divider, { backgroundColor: theme.border }]} />
           <View style={S.row}>
@@ -34,7 +36,7 @@ export default function NotificationSettingsScreen() {
               <Text style={[S.label, { color: theme.white }]}>{t('notificationSettings.smsNotifications')}</Text>
               <Text style={[S.hint, { color: theme.gray }]}>{t('notificationSettings.smsDesc')}</Text>
             </View>
-            <Switch value={switches.sms} trackColor={{ false: theme.border, true: theme.green }} thumbColor={theme.white} />
+            <Switch value={switches.sms} onValueChange={() => toggle('sms')} trackColor={{ false: theme.border, true: theme.green }} thumbColor={theme.white} />
           </View>
         </View>
 
@@ -45,7 +47,7 @@ export default function NotificationSettingsScreen() {
               <Text style={[S.label, { color: theme.white }]}>{t('notificationSettings.orderUpdates')}</Text>
               <Text style={[S.hint, { color: theme.gray }]}>{t('notificationSettings.orderUpdatesDesc')}</Text>
             </View>
-            <Switch value={switches.orderUpdates} trackColor={{ false: theme.border, true: theme.green }} thumbColor={theme.white} />
+            <Switch value={switches.orderUpdates} onValueChange={() => toggle('orderUpdates')} trackColor={{ false: theme.border, true: theme.green }} thumbColor={theme.white} />
           </View>
           <View style={[S.divider, { backgroundColor: theme.border }]} />
           <View style={S.row}>
@@ -53,7 +55,7 @@ export default function NotificationSettingsScreen() {
               <Text style={[S.label, { color: theme.white }]}>{t('notificationSettings.promotional')}</Text>
               <Text style={[S.hint, { color: theme.gray }]}>{t('notificationSettings.promotionalDesc')}</Text>
             </View>
-            <Switch value={switches.promotional} trackColor={{ false: theme.border, true: theme.green }} thumbColor={theme.white} />
+            <Switch value={switches.promotional} onValueChange={() => toggle('promotional')} trackColor={{ false: theme.border, true: theme.green }} thumbColor={theme.white} />
           </View>
         </View>
       </ScrollView>

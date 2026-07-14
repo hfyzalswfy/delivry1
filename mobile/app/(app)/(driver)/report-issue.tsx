@@ -92,7 +92,7 @@ export default function ReportIssueScreen() {
       setSubmitting(false);
       if (result.success) {
         Alert.alert('Report Submitted', 'Your issue has been recorded. You can return to the delivery flow.', [
-          { text: 'OK', onPress: () => router.back() },
+          { text: 'OK', onPress: () => { if (router.canGoBack()) router.back(); else router.replace('/(app)/(driver)'); } },
         ]);
       } else {
         Alert.alert('Submission Failed', result.error);
@@ -119,7 +119,7 @@ export default function ReportIssueScreen() {
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 }}>
           <Text style={{ fontSize: 20, marginBottom: 12 }}>{'\u{26A0}\u{FE0F}'}</Text>
           <Text style={{ color: C.nearWhite, fontSize: 16, textAlign: 'center', marginBottom: 24 }}>{accessError}</Text>
-          <TouchableOpacity style={S.backBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={S.backBtn} onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/(app)/(driver)'); }}>
             <Text style={S.backBtnText}>Go Back</Text>
           </TouchableOpacity>
         </View>
@@ -170,7 +170,7 @@ export default function ReportIssueScreen() {
           {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={S.submitBtnText}>Submit Report</Text>}
         </TouchableOpacity>
 
-        <TouchableOpacity style={S.cancelBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={S.cancelBtn} onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/(app)/(driver)'); }}>
           <Text style={S.cancelBtnText}>Cancel, Return to Delivery</Text>
         </TouchableOpacity>
       </ScrollView>

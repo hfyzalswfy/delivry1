@@ -5,7 +5,7 @@ import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import { supabase } from '../../../src/lib/supabase';
 import { useAuthStore } from '../../../src/store/auth-store';
 import { useDriverLocation } from '../../../src/hooks/use-driver-location';
-import { arriveAtDestination } from '../../../src/services/delivery-service';
+import { arriveAtDestination, startDelivery } from '../../../src/services/delivery-service';
 import { DeliveryOrders, Stores } from '../../../src/types/database';
 import { calculateDistance, calculateETA } from '../../../src/lib/geo';
 import { theme } from '../../../src/theme/driver-theme';
@@ -69,26 +69,15 @@ export default function EnRouteScreen() {
       }
 
       if (o.status === 'picked_up') {
-        const now = new Date().toISOString();
-        const { error: updateError } = await supabase
-          .from('delivery_orders')
-          .update({ status: 'on_the_way', on_the_way_at: now })
-          .eq('id', orderId)
-          .eq('status', 'picked_up');
-
-        if (updateError) {
-          if (!cancelled) { setAccessError('Failed to transition order status. Please try again.'); setLoading(false); }
-          return;
+        const { data: d } = await supabase.from('drivers').select('id').eq('profile_id', profile?.id).single();
+        if (d && !cancelled) {
+          const result = await startDelivery(orderId, d.id);
+          if (!result.success) {
+            if (!cancelled) { setAccessError(result.error || 'Failed to start delivery.'); setLoading(false); }
+            return;
+          }
         }
-
-        await supabase.from('order_status_history').insert({
-          order_id: orderId,
-          from_status: 'picked_up',
-          to_status: 'on_the_way',
-          changed_by: profile?.id || '',
-        });
-
-        if (!cancelled) setOrder({ ...o, status: 'on_the_way', on_the_way_at: now });
+        if (!cancelled) setOrder({ ...o, status: 'on_the_way', on_the_way_at: new Date().toISOString() });
       } else {
         if (!cancelled) setOrder(o);
       }
@@ -203,7 +192,7 @@ export default function EnRouteScreen() {
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 }}>
           <Text style={{ fontSize: 20, marginBottom: 12 }}>{'\u{26A0}\u{FE0F}'}</Text>
           <Text style={{ color: theme.nearWhite, fontSize: 16, textAlign: 'center', marginBottom: 24 }}>{accessError}</Text>
-          <TouchableOpacity style={S.backBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={S.backBtn} onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/(app)/(driver)'); }}>
             <Text style={S.backBtnText}>Go Back</Text>
           </TouchableOpacity>
         </View>

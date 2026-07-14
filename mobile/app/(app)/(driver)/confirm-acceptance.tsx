@@ -89,7 +89,7 @@ export default function ConfirmAcceptanceScreen() {
   const total = (order?.driver_earnings ?? 0) + bonus;
 
   const handleCancel = () => {
-    router.back();
+    if (router.canGoBack()) router.back(); else router.replace('/(app)/(driver)');
   };
 
   const handleConfirm = async () => {

@@ -4,6 +4,7 @@ import { useLocalSearchParams, router, Stack } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../../src/lib/supabase';
 import { useAuthStore } from '../../../src/store/auth-store';
+import { arriveAtStore, confirmPickup } from '../../../src/services/delivery-service';
 import { DeliveryOrders, Stores } from '../../../src/types/database';
 import { calculateDistance } from '../../../src/lib/geo';
 
@@ -28,10 +29,6 @@ const BADGE: Record<string, { label: string; bg: string; text: string }> = {
   driver_accepted: { label: 'Accepted', bg: '#064E3B', text: '#4ADE80' },
   picked_up: { label: 'Picked Up', bg: '#1E3A5F', text: '#60A5FA' },
 };
-
-function fmtCurr(v: number): string {
-  return `${v.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} YER`;
-}
 
 function fmtDist(km: number): string {
   return km < 1 ? `${(km * 1000).toFixed(0)} m` : `${km.toFixed(1)} km`;
@@ -84,7 +81,7 @@ export default function PickupConfirmationScreen() {
 
   const badge = order ? (BADGE[order.status] || { label: order.status.replace(/_/g, ' '), bg: C.disabledBg, text: C.label }) : null;
 
-  const handleCancel = () => router.back();
+  const handleCancel = () => { if (router.canGoBack()) router.back(); else router.replace('/(app)/(driver)'); };
 
   const handleTakePhoto = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -119,7 +116,7 @@ export default function PickupConfirmationScreen() {
   };
 
   const handleMarkPickedUp = async () => {
-    if (!order || !driverId || !profile) return;
+    if (!order || !driverId) return;
     setSaving(true);
 
     const { data: current } = await supabase
@@ -140,41 +137,28 @@ export default function PickupConfirmationScreen() {
       return;
     }
 
-    if (current.status !== 'driver_arrived_store') {
+    // If driver hasn't arrived at store yet, do that first
+    if (current.status === 'driver_accepted') {
+      const arriveResult = await arriveAtStore(orderId, driverId);
+      if (!arriveResult.success) {
+        setSaving(false);
+        Alert.alert('Error', arriveResult.error || 'Failed to mark arrival at store.');
+        return;
+      }
+    } else if (current.status !== 'driver_arrived_store') {
       setSaving(false);
       Alert.alert('Invalid Status', 'This order cannot be marked as picked up from its current state.');
       return;
     }
 
-    const now = new Date().toISOString();
-    const updateFields: Record<string, unknown> = {
-      status: 'picked_up',
-      picked_up_at: now,
-    };
-    if (photoUri) updateFields.proof_image_url = photoUri;
-
-    const { error: updateError } = await supabase
-      .from('delivery_orders')
-      .update(updateFields)
-      .eq('id', orderId)
-      .eq('status', 'driver_arrived_store');
-
-    if (updateError) {
-      setSaving(false);
-      Alert.alert('Error', 'Failed to update order status. Please try again.');
-      return;
-    }
-
-    await supabase.from('order_status_history').insert({
-      order_id: orderId,
-      from_status: 'driver_arrived_store',
-      to_status: 'picked_up',
-      changed_by: profile.id,
-      notes: notes || null,
-    });
+    const result = await confirmPickup(orderId, driverId, photoUri ?? undefined, notes || undefined);
 
     setSaving(false);
-    router.replace(`/(app)/(driver)/${orderId}`);
+    if (result.success) {
+      router.replace(`/(app)/(driver)/${orderId}`);
+    } else {
+      Alert.alert('Error', result.error || 'Failed to confirm pickup.');
+    }
   };
 
   if (loading) {

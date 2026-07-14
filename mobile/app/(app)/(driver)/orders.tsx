@@ -145,7 +145,7 @@ export default function AvailableOrdersScreen() {
   return (
     <SafeAreaView style={styles.root}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
+        <TouchableOpacity onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/(app)/(driver)'); }} style={styles.headerBtn}>
           <Text style={styles.headerBtnText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{activeTab === 'available' ? 'Available Orders' : 'My Orders'}</Text>

@@ -1,15 +1,33 @@
-import { Tabs } from 'expo-router';
-import { View, Text } from 'react-native';
+import { Tabs, router } from 'expo-router';
+import { Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../src/theme/ThemeProvider';
 
-function TabIcon({ icon, focused, color }: { icon: string; focused: boolean; color: string }) {
+function TabIcon({ icon, color }: { icon: string; color: string }) {
   return <Text style={{ fontSize: 20, color }}>{icon}</Text>;
 }
+
+function BackButton({ color }: { color: string }) {
+  return (
+    <TouchableOpacity onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/(app)/(driver)'); }} style={styles.backBtn}>
+      <Text style={{ fontSize: 22, fontWeight: '600', color }}>{'\u2190'}</Text>
+    </TouchableOpacity>
+  );
+}
+
+const BACK_HEADER = (theme: ReturnType<typeof useTheme>) => ({
+  headerLeft: () => <BackButton color={theme.white} />,
+});
 
 export default function DriverLayout() {
   const { t } = useTranslation();
   const theme = useTheme();
+
+  const nonTabScreenOptions = (title: string) => ({
+    href: null as any,
+    title,
+    ...BACK_HEADER(theme),
+  });
 
   return (
     <Tabs
@@ -29,54 +47,58 @@ export default function DriverLayout() {
         options={{
           title: t('tab.home'),
           headerShown: false,
-          tabBarIcon: ({ focused }) => <TabIcon icon="🏠" focused={focused} color={focused ? theme.green : theme.gray} />,
+          tabBarIcon: () => <TabIcon icon="🏠" color={theme.gray} />,
         }}
       />
       <Tabs.Screen
         name="orders"
         options={{
           title: t('tab.orders'),
-          tabBarIcon: ({ focused }) => <TabIcon icon="🚚" focused={focused} color={focused ? theme.green : theme.gray} />,
+          tabBarIcon: () => <TabIcon icon="🚚" color={theme.gray} />,
         }}
       />
       <Tabs.Screen
         name="conversations"
         options={{
           title: t('tab.chat'),
-          tabBarIcon: ({ focused }) => <TabIcon icon="💬" focused={focused} color={focused ? theme.green : theme.gray} />,
+          tabBarIcon: () => <TabIcon icon="💬" color={theme.gray} />,
         }}
       />
       <Tabs.Screen
         name="wallet"
         options={{
           title: t('tab.wallet'),
-          tabBarIcon: ({ focused }) => <TabIcon icon="👛" focused={focused} color={focused ? theme.green : theme.gray} />,
+          tabBarIcon: () => <TabIcon icon="👛" color={theme.gray} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: t('tab.profile'),
-          tabBarIcon: ({ focused }) => <TabIcon icon="👤" focused={focused} color={focused ? theme.green : theme.gray} />,
+          tabBarIcon: () => <TabIcon icon="👤" color={theme.gray} />,
         }}
       />
-      <Tabs.Screen name="[orderId]" options={{ href: null, title: t('orderDetail.title') }} />
-      <Tabs.Screen name="confirm-acceptance" options={{ href: null, title: t('orderDetail.title') }} />
-      <Tabs.Screen name="pickup-confirmation" options={{ href: null, title: t('orderDetail.confirmPickup') }} />
-      <Tabs.Screen name="en-route" options={{ href: null, title: t('enRoute.title') }} />
-      <Tabs.Screen name="confirm-delivery" options={{ href: null, title: t('confirmDelivery.title') }} />
-      <Tabs.Screen name="report-issue" options={{ href: null, title: t('reportIssue.title') }} />
-      <Tabs.Screen name="delivery-summary" options={{ href: null, title: t('deliverySummary.title') }} />
-      <Tabs.Screen name="rewards" options={{ href: null, title: t('rewards.title') }} />
-      <Tabs.Screen name="account-status" options={{ href: null, title: t('accountStatus.title') }} />
-      <Tabs.Screen name="documents" options={{ href: null, title: t('documents.title') }} />
-      <Tabs.Screen name="settings" options={{ href: null, title: t('settings.title') }} />
-      <Tabs.Screen name="language" options={{ href: null, title: t('language.title') }} />
-      <Tabs.Screen name="appearance" options={{ href: null, title: t('theme.title') }} />
-      <Tabs.Screen name="privacy" options={{ href: null, title: t('privacy.title') }} />
-      <Tabs.Screen name="help" options={{ href: null, title: t('help.title') }} />
-      <Tabs.Screen name="about" options={{ href: null, title: t('about.title') }} />
-      <Tabs.Screen name="notification-settings" options={{ href: null, title: t('notificationSettings.title') }} />
+      <Tabs.Screen name="[orderId]" options={nonTabScreenOptions(t('orderDetail.title'))} />
+      <Tabs.Screen name="confirm-acceptance" options={nonTabScreenOptions(t('orderDetail.title'))} />
+      <Tabs.Screen name="pickup-confirmation" options={nonTabScreenOptions(t('orderDetail.confirmPickup'))} />
+      <Tabs.Screen name="en-route" options={nonTabScreenOptions(t('enRoute.title'))} />
+      <Tabs.Screen name="confirm-delivery" options={nonTabScreenOptions(t('confirmDelivery.title'))} />
+      <Tabs.Screen name="report-issue" options={nonTabScreenOptions(t('reportIssue.title'))} />
+      <Tabs.Screen name="delivery-summary" options={nonTabScreenOptions(t('deliverySummary.title'))} />
+      <Tabs.Screen name="rewards" options={nonTabScreenOptions(t('rewards.title'))} />
+      <Tabs.Screen name="account-status" options={nonTabScreenOptions(t('accountStatus.title'))} />
+      <Tabs.Screen name="documents" options={nonTabScreenOptions(t('documents.title'))} />
+      <Tabs.Screen name="settings" options={nonTabScreenOptions(t('settings.title'))} />
+      <Tabs.Screen name="language" options={nonTabScreenOptions(t('language.title'))} />
+      <Tabs.Screen name="appearance" options={nonTabScreenOptions(t('theme.title'))} />
+      <Tabs.Screen name="privacy" options={nonTabScreenOptions(t('privacy.title'))} />
+      <Tabs.Screen name="help" options={nonTabScreenOptions(t('help.title'))} />
+      <Tabs.Screen name="about" options={nonTabScreenOptions(t('about.title'))} />
+      <Tabs.Screen name="notification-settings" options={nonTabScreenOptions(t('notificationSettings.title'))} />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  backBtn: { paddingLeft: 8, paddingRight: 16, paddingVertical: 4 },
+});

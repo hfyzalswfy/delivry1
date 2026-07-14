@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, SafeAreaView, Linking, Alert } from 'react-native';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -79,10 +79,6 @@ export default function DriverOrderDetailScreen() {
   const [driverLng, setDriverLng] = useState<number | null>(null);
   const [driverId, setDriverId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [assignment, setAssignment] = useState<{ id: string } | null>(null);
-  const mountedRef = useRef(true);
-  useEffect(() => () => { mountedRef.current = false; }, []);
 
   const shouldTrack = !!(order && driverId && order.assigned_driver_id === driverId
     && ['driver_accepted', 'driver_arrived_store', 'picked_up', 'on_the_way', 'driver_arrived_destination'].includes(order.status));
@@ -104,9 +100,7 @@ export default function DriverOrderDetailScreen() {
       if (d && !cancelled) {
         setDriverId(d.id);
         setDriverLat(d.current_latitude);
-        setDriverLng(d.current_longitude);
-        const { data: a } = await supabase.from('order_assignments').select('id').eq('order_id', orderId).eq('driver_id', d.id).maybeSingle();
-        if (a) setAssignment(a);
+          setDriverLng(d.current_longitude);
       }
 
       if (cancelled) { setLoading(false); return; }
@@ -170,20 +164,6 @@ export default function DriverOrderDetailScreen() {
   const statusFlow = ['driver_accepted', 'driver_arrived_store', 'picked_up', 'on_the_way', 'driver_arrived_destination', 'delivered'];
   const nextIdx = statusFlow.indexOf(order.status) + 1;
   const isMine = !!(driverId && order.assigned_driver_id === driverId);
-
-  const updateStatus = async (ns: string) => {
-    setActionLoading(true);
-    const ts: Record<string, string> = {
-      driver_arrived_store: 'driver_arrived_store_at',
-      picked_up: 'picked_up_at',
-      on_the_way: 'on_the_way_at',
-      delivered: 'delivered_at',
-    };
-    const u: Record<string, unknown> = { status: ns };
-    if (ts[ns]) u[ts[ns]] = new Date().toISOString();
-    await supabase.from('delivery_orders').update(u).eq('id', orderId);
-    if (mountedRef.current) setActionLoading(false);
-  };
 
   const openMap = () => {
     if (!order) { Alert.alert('Error', 'Order data not available'); return; }
@@ -309,7 +289,7 @@ export default function DriverOrderDetailScreen() {
 
         {/* ────────── ACTION BUTTONS ────────── */}
         {isMine && nextIdx < statusFlow.length && (
-          statusFlow[nextIdx] === 'picked_up' ? (
+          statusFlow[nextIdx] === 'picked_up' || statusFlow[nextIdx] === 'driver_arrived_store' ? (
             <TouchableOpacity style={S.btnPrimary} onPress={() => router.push(`/(app)/(driver)/pickup-confirmation?orderId=${orderId}`)}>
               <Text style={S.btnPrimaryText}>Confirm Pickup</Text>
             </TouchableOpacity>
@@ -317,19 +297,11 @@ export default function DriverOrderDetailScreen() {
             <TouchableOpacity style={S.btnPrimary} onPress={() => router.push(`/(app)/(driver)/en-route?orderId=${orderId}`)}>
               <Text style={S.btnPrimaryText}>Start Delivery</Text>
             </TouchableOpacity>
-          ) : statusFlow[nextIdx] === 'driver_arrived_destination' ? (
-            <TouchableOpacity style={S.btnPrimary} onPress={() => router.push(`/(app)/(driver)/en-route?orderId=${orderId}`)}>
-              <Text style={S.btnPrimaryText}>Start Delivery</Text>
-            </TouchableOpacity>
-          ) : statusFlow[nextIdx] === 'delivered' ? (
+          ) : statusFlow[nextIdx] === 'driver_arrived_destination' || statusFlow[nextIdx] === 'delivered' ? (
             <TouchableOpacity style={S.btnPrimary} onPress={() => router.push(`/(app)/(driver)/confirm-delivery?orderId=${orderId}`)}>
               <Text style={S.btnPrimaryText}>Complete Delivery</Text>
             </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={S.btnPrimary} onPress={() => updateStatus(statusFlow[nextIdx])} disabled={actionLoading}>
-              {actionLoading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={S.btnPrimaryText}>Mark as {statusFlow[nextIdx].replace(/_/g, ' ')}</Text>}
-            </TouchableOpacity>
-          )
+          ) : null
         )}
 
         {isMine && order.status === 'delivered' && (
@@ -345,7 +317,7 @@ export default function DriverOrderDetailScreen() {
         )}
 
         {isMine && order.status === 'driver_accepted' && (
-          <TouchableOpacity style={S.btnSecondary} onPress={() => updateStatus('pending')} disabled={actionLoading}>
+          <TouchableOpacity style={S.btnSecondary} onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/(app)/(driver)'); }}>
             <Text style={S.btnSecondaryText}>Cancel Assignment</Text>
           </TouchableOpacity>
         )}
