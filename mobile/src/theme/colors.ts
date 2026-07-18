@@ -1,12 +1,22 @@
 export const colors = {
-  primary: '#2563EB',
-  primaryLight: '#DBEAFE',
+  primary: '#22C55E',
+  primaryLight: '#DCFCE7',
+  primaryDark: '#16A34A',
   secondary: '#10B981',
   secondaryLight: '#D1FAE5',
   accent: '#F59E0B',
   accentLight: '#FEF3C7',
+  success: '#10B981',
+  successLight: '#D1FAE5',
+  warning: '#F59E0B',
+  warningLight: '#FEF3C7',
   danger: '#EF4444',
   dangerLight: '#FEE2E2',
+  info: '#3B82F6',
+  infoLight: '#DBEAFE',
+  purple: '#8B5CF6',
+  purpleLight: '#EDE9FE',
+
   background: '#F8FAFC',
   surface: '#FFFFFF',
   text: '#0F172A',
@@ -16,6 +26,7 @@ export const colors = {
   borderLight: '#F1F5F9',
   disabled: '#CBD5E1',
   overlay: 'rgba(0, 0, 0, 0.5)',
+
   statusDraft: '#94A3B8',
   statusPublished: '#3B82F6',
   statusAssigned: '#8B5CF6',
@@ -23,4 +34,50 @@ export const colors = {
   statusInTransit: '#F97316',
   statusDelivered: '#10B981',
   statusCancelled: '#EF4444',
+
+  white: '#FFFFFF',
+  black: '#000000',
 };
+
+export const darkColors = {
+  primary: '#22C55E',
+  primaryLight: '#064E3B',
+  primaryDark: '#4ADE80',
+  secondary: '#10B981',
+  secondaryLight: '#064E3B',
+  accent: '#F59E0B',
+  accentLight: '#713F12',
+  success: '#10B981',
+  successLight: '#064E3B',
+  warning: '#F59E0B',
+  warningLight: '#713F12',
+  danger: '#EF4444',
+  dangerLight: '#7F1D1D',
+  info: '#3B82F6',
+  infoLight: '#1E3A5F',
+  purple: '#A78BFA',
+  purpleLight: '#4C1D95',
+
+  background: '#0F172A',
+  surface: '#1E293B',
+  text: '#F1F5F9',
+  textSecondary: '#94A3B8',
+  textTertiary: '#64748B',
+  border: '#334155',
+  borderLight: '#1E293B',
+  disabled: '#475569',
+  overlay: 'rgba(0, 0, 0, 0.7)',
+
+  statusDraft: '#64748B',
+  statusPublished: '#60A5FA',
+  statusAssigned: '#A78BFA',
+  statusPickedUp: '#FBBF24',
+  statusInTransit: '#FB923C',
+  statusDelivered: '#34D399',
+  statusCancelled: '#FCA5A5',
+
+  white: '#FFFFFF',
+  black: '#000000',
+};
+
+export type ColorScheme = typeof colors;

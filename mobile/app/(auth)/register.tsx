@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Link, router } from 'expo-router';
 import { useAuthStore } from '../../src/store/auth-store';
-import { colors } from '../../src/theme/colors';
-import { spacing, fontSize, borderRadius } from '../../src/theme/spacing';
+import { MaterialIcons } from '@expo/vector-icons';
+import { ICONS } from '../../src/constants/icons';
+import { useColors } from '../../src/theme/ThemeProvider';
+import { spacing, fontSize, borderRadius, fontWeight } from '../../src/theme/spacing';
 import { UserRole } from '../../src/types/database';
 
 export default function RegisterScreen() {
@@ -15,11 +17,13 @@ export default function RegisterScreen() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const signUp = useAuthStore((s) => s.signUp);
+  const colors = useColors();
+  const styles = useStyles();
 
-  const roles: { value: UserRole; label: string; icon: string }[] = [
-    { value: 'customer', label: 'Customer', icon: '📦' },
-    { value: 'driver', label: 'Driver', icon: '🚗' },
-    { value: 'store', label: 'Store', icon: '🏪' },
+  const roles: { value: UserRole; label: string; icon: keyof typeof ICONS }[] = [
+    { value: 'customer', label: 'Customer', icon: 'packageIcon' },
+    { value: 'driver', label: 'Driver', icon: 'car' },
+    { value: 'store', label: 'Store', icon: 'store' },
   ];
 
   const handleRegister = async () => {
@@ -86,7 +90,7 @@ export default function RegisterScreen() {
               style={[styles.roleCard, role === r.value && styles.roleCardActive]}
               onPress={() => setRole(r.value)}
             >
-              <Text style={styles.roleIcon}>{r.icon}</Text>
+              <MaterialIcons name={ICONS[r.icon]} size={fontSize.xxl} color={role === r.value ? colors.primary : colors.textSecondary} />
               <Text style={[styles.roleLabel, role === r.value && styles.roleLabelActive]}>
                 {r.label}
               </Text>
@@ -108,23 +112,25 @@ export default function RegisterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function useStyles() {
+  const colors = useColors();
+  return useMemo(() => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background, justifyContent: 'center', padding: spacing.lg },
-  title: { fontSize: fontSize.xxl, fontWeight: '700', color: colors.text, textAlign: 'center' },
+  title: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.text, textAlign: 'center' },
   subtitle: { fontSize: fontSize.md, color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.xl },
   form: { gap: spacing.sm },
-  label: { fontSize: fontSize.sm, fontWeight: '600', color: colors.text },
+  label: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.text },
   input: { borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.md, padding: spacing.md, fontSize: fontSize.md, backgroundColor: colors.surface },
   roleRow: { flexDirection: 'row', gap: spacing.sm },
   roleCard: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.md, padding: spacing.md, alignItems: 'center', backgroundColor: colors.surface },
   roleCardActive: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
-  roleIcon: { fontSize: 24, marginBottom: spacing.xs },
-  roleLabel: { fontSize: fontSize.sm, fontWeight: '500', color: colors.textSecondary },
-  roleLabelActive: { color: colors.primary, fontWeight: '600' },
+  roleLabel: { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: colors.textSecondary, marginTop: spacing.xs },
+  roleLabelActive: { color: colors.primary, fontWeight: fontWeight.semibold },
   error: { color: colors.danger, fontSize: fontSize.sm },
   button: { backgroundColor: colors.primary, borderRadius: borderRadius.md, padding: spacing.md, alignItems: 'center', marginTop: spacing.sm },
   buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: '#fff', fontSize: fontSize.md, fontWeight: '600' },
+  buttonText: { color: colors.white, fontSize: fontSize.md, fontWeight: fontWeight.semibold },
   link: { alignItems: 'center', marginTop: spacing.md },
   linkText: { color: colors.primary, fontSize: fontSize.sm },
-});
+}), [colors]);
+}

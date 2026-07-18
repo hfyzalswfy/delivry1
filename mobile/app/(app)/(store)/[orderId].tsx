@@ -1,22 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Dimensions, SafeAreaView, Linking } from 'react-native';
 import { useLocalSearchParams, Stack, Link } from 'expo-router';
-import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
+import { Marker, Polyline } from 'react-native-maps';
+import SharedMap from '../../../src/components/ui/SharedMap';
+import { MaterialIcons } from '@expo/vector-icons';
+import { ICONS } from '../../../src/constants/icons';
 import { supabase } from '../../../src/lib/supabase';
-import { colors } from '../../../src/theme/colors';
-import { spacing, fontSize, borderRadius } from '../../../src/theme/spacing';
+import { useColors } from '../../../src/theme/ThemeProvider';
+import { spacing, fontSize, borderRadius, fontWeight } from '../../../src/theme/spacing';
 import { DeliveryOrders, DriverLocations } from '../../../src/types/database';
 import { calculateDistance, calculateETA } from '../../../src/lib/geo';
-
-const statusColors: Record<string, string> = {
-  pending: colors.statusDraft,
-  driver_accepted: colors.statusAssigned,
-  driver_arrived_store: colors.statusPublished,
-  picked_up: colors.statusPickedUp,
-  on_the_way: colors.statusInTransit,
-  delivered: colors.statusDelivered,
-  cancelled: colors.statusCancelled,
-};
 
 interface DriverProfile {
   id: string;
@@ -28,6 +21,18 @@ interface DriverProfile {
 }
 
 export default function StoreOrderDetailScreen() {
+  const colors = useColors();
+
+  const statusColors: Record<string, string> = {
+    pending: colors.statusDraft,
+    driver_accepted: colors.statusAssigned,
+    driver_arrived_store: colors.statusPublished,
+    picked_up: colors.statusPickedUp,
+    on_the_way: colors.statusInTransit,
+    delivered: colors.statusDelivered,
+    cancelled: colors.statusCancelled,
+  };
+
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
   const [order, setOrder] = useState<DeliveryOrders | null>(null);
   const [driverProfile, setDriverProfile] = useState<DriverProfile | null>(null);
@@ -99,6 +104,33 @@ export default function StoreOrderDetailScreen() {
     };
   }, [orderId]);
 
+  const styles = useMemo(() => StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background, padding: spacing.md },
+    statusBadge: { alignSelf: 'flex-start', borderRadius: borderRadius.full, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, marginBottom: spacing.lg },
+    statusText: { fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+    sectionTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.textSecondary, marginTop: spacing.md, marginBottom: spacing.xs, textTransform: 'uppercase' },
+    value: { fontSize: fontSize.md, color: colors.text, marginBottom: spacing.xs },
+    priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.md },
+    price: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.primary },
+    trackingCard: { backgroundColor: colors.surface, borderRadius: borderRadius.md, padding: spacing.md, borderWidth: 1, borderColor: colors.border, marginTop: spacing.lg },
+    trackingTitle: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.text },
+    trackingSubtitle: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: spacing.xs },
+    etaText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.secondary, marginVertical: spacing.xs },
+    map: { width: '100%', height: 250, borderRadius: borderRadius.md, marginTop: spacing.sm },
+    chatButton: { backgroundColor: colors.surface, borderRadius: borderRadius.md, padding: spacing.md, alignItems: 'center', marginTop: spacing.md, borderWidth: 1, borderColor: colors.border },
+    chatButtonText: { color: colors.primary, fontSize: fontSize.md, fontWeight: fontWeight.semibold },
+    driverCard: { backgroundColor: colors.surface, borderRadius: borderRadius.md, padding: spacing.md, borderWidth: 1, borderColor: colors.border, marginTop: spacing.md },
+    driverRow: { flexDirection: 'row', alignItems: 'center' },
+    driverAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center', marginRight: spacing.sm },
+    driverAvatarText: { color: colors.white, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+    driverInfo: { flex: 1 },
+    driverName: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.text },
+    driverPhone: { fontSize: fontSize.sm, color: colors.textSecondary },
+    driverMeta: { fontSize: fontSize.xs, color: colors.textTertiary, marginTop: 1 },
+    driverActions: { flexDirection: 'row', gap: spacing.sm },
+    driverActionBtn: { backgroundColor: colors.primaryLight, borderRadius: borderRadius.full, width: 36, height: 36, justifyContent: 'center', alignItems: 'center' },
+  }), [colors]);
+
   if (loading) return <ActivityIndicator size="large" style={{ flex: 1 }} />;
   if (!order) return <Text style={{ textAlign: 'center', marginTop: 50 }}>Order not found</Text>;
 
@@ -141,14 +173,14 @@ export default function StoreOrderDetailScreen() {
               <View style={styles.driverInfo}>
                 <Text style={styles.driverName}>{driverProfile.full_name}</Text>
                 <Text style={styles.driverPhone}>{driverProfile.phone ?? ''}</Text>
-                <Text style={styles.driverMeta}>⭐ {driverProfile.average_rating.toFixed(1)} · {driverProfile.availability}</Text>
+                <Text style={styles.driverMeta}><MaterialIcons name={ICONS.star} size={fontSize.xs} color={colors.textTertiary} /> {driverProfile.average_rating.toFixed(1)} · {driverProfile.availability}</Text>
               </View>
               <View style={styles.driverActions}>
                 <Link href={`/(app)/(chat)/${orderId}`} style={styles.driverActionBtn}>
-                  <Text style={styles.driverActionBtnText}>💬</Text>
+                  <MaterialIcons name={ICONS.chat} size={fontSize.md} color={colors.text} />
                 </Link>
                 <TouchableOpacity style={styles.driverActionBtn} onPress={() => Linking.openURL(`tel:${driverProfile.phone || ''}`)}>
-                  <Text style={styles.driverActionBtnText}>📞</Text>
+                  <MaterialIcons name={ICONS.phone} size={fontSize.md} color={colors.text} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -163,9 +195,8 @@ export default function StoreOrderDetailScreen() {
               const eta = calculateETA(dist);
               return <Text style={styles.etaText}>{dist < 1 ? `${(dist * 1000).toFixed(0)} m` : `${dist.toFixed(1)} km`} from store — {eta} min</Text>;
             })()}
-            <MapView
+            <SharedMap
               style={styles.map}
-              provider={PROVIDER_DEFAULT}
               mapType="standard"
               loadingEnabled
               region={{
@@ -186,7 +217,7 @@ export default function StoreOrderDetailScreen() {
                 strokeColor={colors.secondary}
                 strokeWidth={2}
               />
-            </MapView>
+            </SharedMap>
           </View>
         ) : order.status === 'driver_accepted' ? (
           <View style={styles.trackingCard}>
@@ -201,37 +232,11 @@ export default function StoreOrderDetailScreen() {
         </View>
 
         <Link href={`/(app)/(chat)/${orderId}`} style={styles.chatButton}>
-          <Text style={styles.chatButtonText}>💬 Chat</Text>
+          <MaterialIcons name={ICONS.chat} size={fontSize.md} color={colors.primary} style={{ marginRight: spacing.xs }} />
+          <Text style={styles.chatButtonText}>Chat</Text>
         </Link>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background, padding: spacing.md },
-  statusBadge: { alignSelf: 'flex-start', borderRadius: borderRadius.full, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, marginBottom: spacing.lg },
-  statusText: { fontSize: fontSize.sm, fontWeight: '700' },
-  sectionTitle: { fontSize: fontSize.sm, fontWeight: '700', color: colors.textSecondary, marginTop: spacing.md, marginBottom: spacing.xs, textTransform: 'uppercase' },
-  value: { fontSize: fontSize.md, color: colors.text, marginBottom: spacing.xs },
-  priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.md },
-  price: { fontSize: fontSize.xl, fontWeight: '700', color: colors.primary },
-  trackingCard: { backgroundColor: colors.surface, borderRadius: borderRadius.md, padding: spacing.md, borderWidth: 1, borderColor: colors.border, marginTop: spacing.lg },
-  trackingTitle: { fontSize: fontSize.md, fontWeight: '600', color: colors.text },
-  trackingSubtitle: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: spacing.xs },
-  etaText: { fontSize: fontSize.sm, fontWeight: '600', color: colors.secondary, marginVertical: spacing.xs },
-  map: { width: '100%', height: 250, borderRadius: borderRadius.md, marginTop: spacing.sm },
-  chatButton: { backgroundColor: colors.surface, borderRadius: borderRadius.md, padding: spacing.md, alignItems: 'center', marginTop: spacing.md, borderWidth: 1, borderColor: colors.border },
-  chatButtonText: { color: colors.primary, fontSize: fontSize.md, fontWeight: '600' },
-  driverCard: { backgroundColor: colors.surface, borderRadius: borderRadius.md, padding: spacing.md, borderWidth: 1, borderColor: colors.border, marginTop: spacing.md },
-  driverRow: { flexDirection: 'row', alignItems: 'center' },
-  driverAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center', marginRight: spacing.sm },
-  driverAvatarText: { color: '#fff', fontSize: fontSize.md, fontWeight: '700' },
-  driverInfo: { flex: 1 },
-  driverName: { fontSize: fontSize.md, fontWeight: '600', color: colors.text },
-  driverPhone: { fontSize: fontSize.sm, color: colors.textSecondary },
-  driverMeta: { fontSize: fontSize.xs, color: colors.textTertiary, marginTop: 1 },
-  driverActions: { flexDirection: 'row', gap: spacing.sm },
-  driverActionBtn: { backgroundColor: colors.primaryLight, borderRadius: borderRadius.full, width: 36, height: 36, justifyContent: 'center', alignItems: 'center' },
-  driverActionBtnText: { fontSize: 16 },
-});

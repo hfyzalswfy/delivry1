@@ -5,12 +5,14 @@ import { useTranslation } from 'react-i18next';
 import { supabase } from '../../../src/lib/supabase';
 import { useAuthStore } from '../../../src/store/auth-store';
 import { Drivers } from '../../../src/types/database';
-import { useTheme } from '../../../src/theme/ThemeProvider';
-import type { Theme } from '../../../src/theme/driver-theme';
+import { useColors } from '../../../src/theme/ThemeProvider';
+import { spacing, fontSize, borderRadius, fontWeight } from '../../../src/theme/index';
+import { MaterialIcons } from '@expo/vector-icons';
+import { ICONS } from '../../../src/constants/icons';
 
 export default function DriverProfileScreen() {
   const { t } = useTranslation();
-  const theme = useTheme();
+  const colors = useColors();
   const profile = useAuthStore((s) => s.profile);
   const signOut = useAuthStore((s) => s.signOut);
   const [loading, setLoading] = useState(true);
@@ -18,7 +20,7 @@ export default function DriverProfileScreen() {
   const [docStatus, setDocStatus] = useState<{ approved: number; total: number }>({ approved: 0, total: 0 });
   const cancelledRef = useRef(false);
 
-  const S = useMemo(() => makeStyles(theme), [theme]);
+  const S = useMemo(() => makeStyles(colors), [colors]);
 
   useEffect(() => {
     if (!profile) return;
@@ -46,10 +48,10 @@ export default function DriverProfileScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
-        <Stack.Screen options={{ title: t('profile.title'), headerTitleStyle: { fontWeight: '600', color: theme.white } }} />
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <Stack.Screen options={{ title: t('profile.title'), headerTitleStyle: { fontWeight: fontWeight.semibold, color: colors.text } }} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color={theme.green} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </SafeAreaView>
     );
@@ -59,19 +61,19 @@ export default function DriverProfileScreen() {
   const rating = driver?.average_rating ?? 0;
   const totalDeliveries = driver?.total_deliveries ?? 0;
 
-  const menuItems: { icon: string; labelKey: string; route: string }[] = [
-    { icon: '\u{1F4C4}', labelKey: 'profile.documents', route: '/(app)/(driver)/documents' },
-    { icon: '\u{1F512}', labelKey: 'accountStatus.title', route: '/(app)/(driver)/account-status' },
-    { icon: '\u{1F3C6}', labelKey: 'rewards.title', route: '/(app)/(driver)/rewards' },
-    { icon: '\u{1F4CB}', labelKey: 'notifications.title', route: '/(app)/(notifications)' /* outside driver tab */ },
-    { icon: '\u{2699}\u{FE0F}', labelKey: 'settings.title', route: '/(app)/(driver)/settings' },
-    { icon: '\u{1F4F1}', labelKey: 'settings.language', route: '/(app)/(driver)/language' },
+  const menuItems: { icon: keyof typeof ICONS; labelKey: string; route: string }[] = [
+    { icon: 'document', labelKey: 'profile.documents', route: '/(app)/(driver)/documents' },
+    { icon: 'lock', labelKey: 'accountStatus.title', route: '/(app)/(driver)/account-status' },
+    { icon: 'stars', labelKey: 'rewards.title', route: '/(app)/(driver)/rewards' },
+    { icon: 'notifications', labelKey: 'notifications.title', route: '/(app)/(notifications)' },
+    { icon: 'settings', labelKey: 'settings.title', route: '/(app)/(driver)/settings' },
+    { icon: 'language', labelKey: 'settings.language', route: '/(app)/(driver)/language' },
   ];
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
-      <Stack.Screen options={{ title: t('profile.title'), headerTitleStyle: { fontWeight: '600', color: theme.white } }} />
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <Stack.Screen options={{ title: t('profile.title'), headerTitleStyle: { fontWeight: '600', color: colors.text } }} />
+      <ScrollView contentContainerStyle={{ paddingBottom: spacing.xl }} showsVerticalScrollIndicator={false}>
         <View style={S.profileHeader}>
           <View style={S.avatar}>
             <Text style={S.avatarText}>{initial}</Text>
@@ -91,7 +93,7 @@ export default function DriverProfileScreen() {
             <Text style={S.statLabel}>{t('home.rating')}</Text>
           </View>
           <View style={S.statCard}>
-            <Text style={[S.statValue, { color: driver?.is_verified ? theme.green : theme.red }]}>
+            <Text style={[S.statValue, { color: driver?.is_verified ? colors.primary : colors.danger }]}>
               {driver?.is_verified ? t('profile.yes') : t('profile.no')}
             </Text>
             <Text style={S.statLabel}>{t('profile.verified')}</Text>
@@ -140,12 +142,12 @@ export default function DriverProfileScreen() {
             const labels: Record<string, string> = {
               license: t('documents.driverLicense'), vehicle_registration: t('documents.vehicleRegistration'), national_id: t('documents.nationalId'),
             };
-            const icons: Record<string, string> = {
-              license: '\u{1F3C1}', vehicle_registration: '\u{1F697}', national_id: '\u{1F464}',
+            const icons: Record<string, keyof typeof ICONS> = {
+              license: 'flag', vehicle_registration: 'car', national_id: 'person',
             };
             return (
               <View key={type} style={S.docRow}>
-                <Text style={{ fontSize: 18 }}>{icons[type]}</Text>
+                <MaterialIcons name={ICONS[icons[type]]} size={fontSize.lg} color={colors.text} />
                 <Text style={S.docLabel}>{labels[type]}</Text>
               </View>
             );
@@ -159,10 +161,10 @@ export default function DriverProfileScreen() {
           {menuItems.map((item, idx) => (
             <TouchableOpacity key={idx} style={S.menuItem} onPress={() => router.push(item.route as any)}>
               <View style={S.menuLeft}>
-                <Text style={{ fontSize: 20 }}>{item.icon}</Text>
+                <MaterialIcons name={ICONS[item.icon]} size={fontSize.xl} color={colors.text} />
                 <Text style={S.menuLabel}>{t(item.labelKey)}</Text>
               </View>
-              <Text style={S.menuArrow}>{'\u{203A}'}</Text>
+              <MaterialIcons name={ICONS.chevronRight} size={fontSize.xxl} color={colors.textSecondary} />
             </TouchableOpacity>
           ))}
         </View>
@@ -179,32 +181,31 @@ export default function DriverProfileScreen() {
   );
 }
 
-const makeStyles = (theme: Theme) => StyleSheet.create({
-  profileHeader: { alignItems: 'center', paddingTop: theme.spacing.xl, paddingBottom: theme.spacing.lg, paddingHorizontal: 16 },
-  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: theme.green, justifyContent: 'center', alignItems: 'center', marginBottom: theme.spacing.md },
-  avatarText: { fontSize: theme.fontSize.xxxl, fontWeight: theme.fontWeight.bold, color: theme.white },
-  name: { fontSize: theme.fontSize.xxl, fontWeight: theme.fontWeight.bold, color: theme.white, marginBottom: 4 },
-  role: { fontSize: theme.fontSize.sm, fontWeight: theme.fontWeight.semibold, color: theme.green, marginBottom: 4 },
-  phone: { fontSize: theme.fontSize.md, color: theme.gray },
-  statsRow: { flexDirection: 'row', marginHorizontal: 16, marginBottom: 16, gap: 8 },
-  statCard: { flex: 1, backgroundColor: theme.card, borderRadius: theme.radius.lg, padding: theme.spacing.md, borderWidth: 1, borderColor: theme.border, alignItems: 'center' },
-  statValue: { fontSize: theme.fontSize.lg, fontWeight: theme.fontWeight.bold, color: theme.white, marginBottom: 2 },
-  statLabel: { fontSize: theme.fontSize.xs, color: theme.gray },
-  card: { backgroundColor: theme.card, borderRadius: theme.radius.lg, marginHorizontal: 16, marginBottom: 12, padding: theme.spacing.lg, borderWidth: 1, borderColor: theme.border },
-  cardTitle: { fontSize: theme.fontSize.xl, fontWeight: theme.fontWeight.bold, color: theme.white, marginBottom: 12 },
-  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: theme.border },
-  infoLabel: { fontSize: theme.fontSize.md, color: theme.gray },
-  infoValue: { fontSize: theme.fontSize.md, fontWeight: theme.fontWeight.semibold, color: theme.white },
-  docRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  docLabel: { fontSize: theme.fontSize.md, color: theme.nearWhite, marginLeft: 10 },
-  manageDocsBtn: { marginTop: 8, paddingVertical: 10, alignItems: 'center', backgroundColor: theme.badgeGray, borderRadius: theme.radius.md },
-  manageDocsText: { fontSize: theme.fontSize.md, fontWeight: theme.fontWeight.semibold, color: theme.green },
-  menuSection: { marginHorizontal: 16, marginBottom: 16 },
-  menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: theme.card, paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.lg, borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.border, marginBottom: 8 },
+const makeStyles = (colors: ReturnType<typeof useColors>) => StyleSheet.create({
+  profileHeader: { alignItems: 'center', paddingTop: spacing.xl, paddingBottom: spacing.lg, paddingHorizontal: spacing.md },
+  avatar: { width: 80, height: 80, borderRadius: borderRadius.full, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center', marginBottom: spacing.md },
+  avatarText: { fontSize: fontSize.xxxl, fontWeight: fontWeight.bold, color: colors.text },
+  name: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.text, marginBottom: spacing.xs },
+  role: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.primary, marginBottom: spacing.xs },
+  phone: { fontSize: fontSize.md, color: colors.textSecondary },
+  statsRow: { flexDirection: 'row', marginHorizontal: spacing.md, marginBottom: spacing.md, gap: spacing.sm },
+  statCard: { flex: 1, backgroundColor: colors.surface, borderRadius: borderRadius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
+  statValue: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text, marginBottom: 2 },
+  statLabel: { fontSize: fontSize.xs, color: colors.textSecondary },
+  card: { backgroundColor: colors.surface, borderRadius: borderRadius.lg, marginHorizontal: spacing.md, marginBottom: spacing.sm + spacing.xs, padding: spacing.lg, borderWidth: 1, borderColor: colors.border },
+  cardTitle: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.text, marginBottom: spacing.sm + spacing.xs },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.sm + spacing.xs, borderBottomWidth: 1, borderBottomColor: colors.border },
+  infoLabel: { fontSize: fontSize.md, color: colors.textSecondary },
+  infoValue: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.text },
+  docRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm + spacing.xs },
+  docLabel: { fontSize: fontSize.md, color: colors.text, marginLeft: spacing.sm + spacing.xs },
+  manageDocsBtn: { marginTop: spacing.sm, paddingVertical: spacing.sm + spacing.xs, alignItems: 'center', backgroundColor: colors.borderLight, borderRadius: borderRadius.md },
+  manageDocsText: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.primary },
+  menuSection: { marginHorizontal: spacing.md, marginBottom: spacing.md },
+  menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.surface, paddingHorizontal: spacing.lg, paddingVertical: spacing.lg, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.sm },
   menuLeft: { flexDirection: 'row', alignItems: 'center' },
-  menuLabel: { fontSize: theme.fontSize.md, fontWeight: theme.fontWeight.semibold, color: theme.white, marginLeft: 12 },
-  menuArrow: { fontSize: theme.fontSize.xxl, color: theme.gray },
-  memberSince: { fontSize: theme.fontSize.sm, color: theme.dim, textAlign: 'center', marginBottom: 16 },
-  signOutBtn: { marginHorizontal: 16, paddingVertical: 14, alignItems: 'center', backgroundColor: theme.card, borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.redDark },
-  signOutText: { fontSize: theme.fontSize.md, fontWeight: theme.fontWeight.semibold, color: theme.red },
+  menuLabel: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.text, marginLeft: spacing.sm + spacing.xs },
+  memberSince: { fontSize: fontSize.sm, color: colors.textTertiary, textAlign: 'center', marginBottom: spacing.md },
+  signOutBtn: { marginHorizontal: spacing.md, paddingVertical: spacing.sm + spacing.xs + spacing.xs, alignItems: 'center', backgroundColor: colors.surface, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: colors.dangerLight },
+  signOutText: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.danger },
 });

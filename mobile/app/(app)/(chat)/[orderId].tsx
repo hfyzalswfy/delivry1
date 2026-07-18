@@ -1,17 +1,13 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, Stack } from 'expo-router';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../../src/store/auth-store';
 import { useConversation } from '../../../src/hooks/use-chat';
-import { colors } from '../../../src/theme/colors';
-import { spacing, fontSize, borderRadius } from '../../../src/theme/spacing';
-
-const roleConfig: Record<string, { label: string; emoji: string; color: string }> = {
-  customer: { label: 'Customer', emoji: '\u{1F464}', color: '#8B5CF6' },
-  driver: { label: 'Driver', emoji: '\u{1F69A}', color: '#10B981' },
-  store: { label: 'Store', emoji: '\u{1F6D2}', color: '#F59E0B' },
-  admin: { label: 'Admin', emoji: '\u{2699}\u{FE0F}', color: '#EF4444' },
-};
+import { useColors } from '../../../src/theme/ThemeProvider';
+import { spacing, fontSize, borderRadius, fontWeight } from '../../../src/theme/spacing';
+import { ICONS } from '../../../src/constants/icons';
+import { ROLE_CONFIG } from '../../../src/constants';
 
 function formatTime(dateStr: string): string {
   const date = new Date(dateStr);
@@ -62,6 +58,9 @@ export default function ChatScreen() {
   const [input, setInput] = useState('');
   const flatListRef = useRef<FlatList>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
+
+  const colors = useColors();
+  const S = useStyles();
 
   const otherTyping = typingUsers.filter((t) => t.profile_id !== user?.id);
 
@@ -147,12 +146,12 @@ export default function ChatScreen() {
           <Text style={S.headerLabel}>ORDER</Text>
           {otherParticipants.length > 0 ? (
             <View style={S.headerParticipants}>
-              <View style={[S.headerAvatar, { backgroundColor: roleConfig[otherParticipants[0]?.role ?? 'customer'].color + '20' }]}>
+              <View style={[S.headerAvatar, { backgroundColor: ROLE_CONFIG[otherParticipants[0]?.role ?? 'customer'].color + '20' }]}>
                 <Text style={S.headerAvatarText}>{otherParticipants[0]?.full_name?.charAt(0).toUpperCase()}</Text>
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={S.headerName} numberOfLines={1}>
-                  {roleConfig[otherParticipants[0]?.role ?? 'customer'].emoji} {otherParticipants[0]?.full_name}
+                  {ROLE_CONFIG[otherParticipants[0]?.role ?? 'customer'].emoji} {otherParticipants[0]?.full_name}
                 </Text>
                 <Text style={S.headerOrder}>#{orderId?.slice(0, 8)}</Text>
               </View>
@@ -169,7 +168,7 @@ export default function ChatScreen() {
       >
         {messages.length === 0 ? (
           <View style={S.emptyChat}>
-            <Text style={S.emptyChatIcon}>{'\u{1F4AC}'}</Text>
+            <MaterialIcons name={ICONS.chat} size={fontSize.giant} color={colors.textTertiary} style={{ marginBottom: spacing.md }} />
             <Text style={S.emptyChatTitle}>No messages yet</Text>
             <Text style={S.emptyChatSub}>Send a message to start the conversation</Text>
           </View>
@@ -197,7 +196,7 @@ export default function ChatScreen() {
               const firstMsg = group.messages[0];
               const isMine = firstMsg.sender_id === user?.id;
               const role = firstMsg.sender?.role ?? 'customer';
-              const cfg = roleConfig[role] ?? roleConfig.customer;
+              const cfg = ROLE_CONFIG[role] ?? ROLE_CONFIG.customer;
 
               return (
                 <View style={[S.groupContainer, isMine && S.groupContainerMine]}>
@@ -228,9 +227,7 @@ export default function ChatScreen() {
                               {formatTime(msg.created_at)}
                             </Text>
                             {isMineMsg && (
-                              <Text style={[S.status, isMineMsg && S.statusMine]}>
-                                {'\u{2713}'}
-                              </Text>
+                              <MaterialIcons name={ICONS.check} size={fontSize.xs} style={[S.status, isMineMsg && S.statusMine]} />
                             )}
                           </View>
                         </View>
@@ -276,7 +273,9 @@ export default function ChatScreen() {
   );
 }
 
-const S = StyleSheet.create({
+function useStyles() {
+  const colors = useColors();
+  return useMemo(() => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: {
@@ -287,44 +286,44 @@ const S = StyleSheet.create({
     borderColor: colors.border,
   },
   headerInfo: {},
-  headerLabel: { fontSize: fontSize.xs, fontWeight: '700', color: colors.textTertiary, letterSpacing: 1 },
+  headerLabel: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: colors.textTertiary, letterSpacing: 1 },
   headerParticipants: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.xs },
-  headerAvatar: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginRight: spacing.sm },
-  headerAvatarText: { fontSize: fontSize.sm, fontWeight: '700', color: colors.text },
-  headerName: { fontSize: fontSize.md, fontWeight: '600', color: colors.text },
-  headerOrder: { fontSize: fontSize.xs, color: colors.textTertiary, marginTop: 1 },
+  headerAvatar: { width: 28, height: 28, borderRadius: borderRadius.full, justifyContent: 'center', alignItems: 'center', marginRight: spacing.sm },
+  headerAvatarText: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.text },
+  headerName: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.text },
+  headerOrder: { fontSize: fontSize.xs, color: colors.textTertiary, marginTop: spacing.xs },
   messageList: { padding: spacing.md, paddingBottom: spacing.sm },
   emptyChat: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.xl },
-  emptyChatIcon: { fontSize: 48, marginBottom: spacing.md },
-  emptyChatTitle: { fontSize: fontSize.lg, fontWeight: '600', color: colors.text, marginBottom: spacing.xs },
+  emptyChatTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.text, marginBottom: spacing.xs },
   emptyChatSub: { fontSize: fontSize.sm, color: colors.textTertiary, textAlign: 'center' },
   dateSeparator: { flexDirection: 'row', alignItems: 'center', marginVertical: spacing.md },
   dateLine: { flex: 1, height: 1, backgroundColor: colors.border },
-  dateLabel: { fontSize: fontSize.xs, color: colors.textTertiary, marginHorizontal: spacing.sm, fontWeight: '500' },
+  dateLabel: { fontSize: fontSize.xs, color: colors.textTertiary, marginHorizontal: spacing.sm, fontWeight: fontWeight.medium },
   groupContainer: { marginBottom: spacing.md, alignItems: 'flex-start' },
   groupContainerMine: { alignItems: 'flex-end' },
   senderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs },
-  avatar: { width: 22, height: 22, borderRadius: 11, justifyContent: 'center', alignItems: 'center', marginRight: spacing.xs },
-  avatarText: { fontSize: 10, fontWeight: '700', color: colors.text },
-  roleLabel: { fontSize: fontSize.xs, fontWeight: '600' },
+  avatar: { width: 22, height: 22, borderRadius: borderRadius.full, justifyContent: 'center', alignItems: 'center', marginRight: spacing.xs },
+  avatarText: { fontSize: fontSize.xxs, fontWeight: fontWeight.bold, color: colors.text },
+  roleLabel: { fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
   messageRow: { alignItems: 'flex-start' },
   messageRowMine: { alignItems: 'flex-end' },
   bubble: { maxWidth: '78%', borderRadius: borderRadius.lg, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderWidth: 1 },
   bubbleMine: { borderBottomRightRadius: borderRadius.sm },
   bubbleOther: { borderBottomLeftRadius: borderRadius.sm },
-  bubbleCompact: { marginBottom: 2 },
+  bubbleCompact: { marginBottom: spacing.xs },
   messageText: { fontSize: fontSize.md, color: colors.text, lineHeight: 22 },
-  messageTextMine: { color: '#fff' },
-  bubbleFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 },
-  time: { fontSize: 11, color: colors.textTertiary },
-  timeMine: { color: 'rgba(255,255,255,0.65)' },
-  status: { fontSize: 11, marginLeft: 4 },
-  statusMine: { color: 'rgba(255,255,255,0.8)' },
+  messageTextMine: { color: colors.white },
+  bubbleFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: spacing.xs },
+  time: { fontSize: fontSize.xs, color: colors.textTertiary },
+  timeMine: { color: colors.white, opacity: 0.65 },
+  status: { fontSize: fontSize.xs, marginLeft: spacing.xs },
+  statusMine: { color: colors.white, opacity: 0.8 },
   typingIndicator: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs, backgroundColor: colors.background },
   typingText: { fontSize: fontSize.xs, color: colors.textTertiary, fontStyle: 'italic' },
   inputBar: { flexDirection: 'row', alignItems: 'flex-end', padding: spacing.sm, borderTopWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   textInput: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.full, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.md, maxHeight: 100, backgroundColor: colors.background, marginRight: spacing.sm },
   sendButton: { backgroundColor: colors.primary, borderRadius: borderRadius.full, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, justifyContent: 'center' },
   sendButtonDisabled: { opacity: 0.5 },
-  sendText: { color: '#fff', fontWeight: '600', fontSize: fontSize.sm },
-});
+  sendText: { color: colors.white, fontWeight: fontWeight.semibold, fontSize: fontSize.sm },
+}), [colors]);
+}

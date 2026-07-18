@@ -1,24 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, SafeAreaView } from 'react-native';
 import { useLocalSearchParams, router, Stack } from 'expo-router';
+import { MaterialIcons } from '@expo/vector-icons';
 import { supabase } from '../../../src/lib/supabase';
 import { useAuthStore } from '../../../src/store/auth-store';
 import { DeliveryOrders, Stores } from '../../../src/types/database';
-
-const C = {
-  screenBg: '#0E1212',
-  cardBg: '#1A1D28',
-  white: '#FFFFFF',
-  nearWhite: '#F3F4F6',
-  label: '#6B7280',
-  green: '#22C55E',
-  greenDark: '#064E3B',
-  greenLight: '#4ADE80',
-  border: '#2A2D3A',
-  divider: '#2A2D3A',
-  badgeGray: '#2A2D3A',
-  cardRadius: 12,
-};
+import { useColors } from '../../../src/theme/ThemeProvider';
+import { spacing, fontSize, borderRadius, fontWeight } from '../../../src/theme/spacing';
+import { ICONS } from '../../../src/constants/icons';
 
 function fmtCurr(v: number): string {
   return `${v.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} YER`;
@@ -30,6 +19,8 @@ function fmtPay(m: string): string {
 }
 
 export default function DeliverySummaryScreen() {
+  const colors = useColors();
+
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
   const profile = useAuthStore((s) => s.profile);
 
@@ -82,22 +73,57 @@ export default function DeliverySummaryScreen() {
     else router.replace('/(app)/(driver)');
   };
 
+  const S = useMemo(() => StyleSheet.create({
+    banner: {
+      alignItems: 'center', paddingVertical: 28, marginBottom: spacing.sm,
+    },
+    bannerTitle: { color: colors.text, fontSize: fontSize.xxl, fontWeight: fontWeight.bold, marginBottom: 6 },
+    bannerSub: { color: colors.textSecondary, fontSize: fontSize.sm, textAlign: 'center' },
+    card: {
+      backgroundColor: colors.surface, borderRadius: borderRadius.lg, padding: spacing.md, marginBottom: spacing.sm,
+      borderWidth: 1, borderColor: colors.border,
+    },
+    cardTitle: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold, marginBottom: spacing.sm },
+    locRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: spacing.sm },
+    locLabel: { color: colors.textSecondary, fontSize: fontSize.xxs, fontWeight: fontWeight.semibold, letterSpacing: 0.5, marginBottom: spacing.xs },
+    locTitle: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+    dropPinSmall: { width: 22, height: 22, borderRadius: 11, backgroundColor: colors.dangerLight, justifyContent: 'center', alignItems: 'center', marginTop: 1 },
+    custName: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold, marginBottom: spacing.xs },
+    custPhone: { color: colors.textSecondary, fontSize: fontSize.sm },
+    payRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
+    lbl: { color: colors.textSecondary, fontSize: fontSize.sm },
+    val: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+    divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.sm },
+    totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    totalLbl: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+    totalVal: { color: colors.primary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+    payMethodBadge: {
+      flexDirection: 'row', alignItems: 'center', backgroundColor: colors.borderLight,
+      paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, borderRadius: borderRadius.md, marginTop: spacing.sm, gap: spacing.sm,
+    },
+    payMethodText: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.medium },
+    homeBtn: { backgroundColor: colors.primaryLight, borderRadius: borderRadius.lg, paddingVertical: spacing.sm, alignItems: 'center', marginTop: spacing.sm },
+    homeBtnText: { color: colors.primary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+    backBtn: { backgroundColor: colors.primaryLight, borderRadius: borderRadius.lg, paddingVertical: spacing.sm, paddingHorizontal: spacing.xl },
+    backBtnText: { color: colors.primary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  }), [colors]);
+
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.screenBg }}>
-        <Stack.Screen options={{ title: 'Delivery Summary', headerTitleStyle: { fontWeight: '700', color: '#fff' } }} />
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color={C.green} /></View>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <Stack.Screen options={{ title: 'Delivery Summary', headerTitleStyle: { fontWeight: fontWeight.bold } }} />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color={colors.primary} /></View>
       </SafeAreaView>
     );
   }
 
   if (accessError) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.screenBg }}>
-        <Stack.Screen options={{ title: 'Delivery Summary', headerTitleStyle: { fontWeight: '700', color: '#fff' } }} />
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 }}>
-          <Text style={{ fontSize: 20, marginBottom: 12 }}>{'\u{26A0}\u{FE0F}'}</Text>
-          <Text style={{ color: C.nearWhite, fontSize: 16, textAlign: 'center', marginBottom: 24 }}>{accessError}</Text>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <Stack.Screen options={{ title: 'Delivery Summary', headerTitleStyle: { fontWeight: fontWeight.bold } }} />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.lg }}>
+          <MaterialIcons name={ICONS.warning} size={fontSize.xl} color={colors.warning} />
+          <Text style={{ color: colors.text, fontSize: fontSize.md, textAlign: 'center', marginBottom: spacing.lg }}>{accessError}</Text>
           <TouchableOpacity style={S.backBtn} onPress={handleGoHome}>
             <Text style={S.backBtnText}>Go to Dashboard</Text>
           </TouchableOpacity>
@@ -108,9 +134,9 @@ export default function DeliverySummaryScreen() {
 
   if (!order) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.screenBg }}>
-        <Stack.Screen options={{ title: 'Delivery Summary', headerTitleStyle: { fontWeight: '700', color: '#fff' } }} />
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text style={{ color: C.label, fontSize: 16 }}>Order not found</Text></View>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <Stack.Screen options={{ title: 'Delivery Summary', headerTitleStyle: { fontWeight: fontWeight.bold } }} />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text style={{ color: colors.textSecondary, fontSize: fontSize.md }}>Order not found</Text></View>
       </SafeAreaView>
     );
   }
@@ -119,13 +145,13 @@ export default function DeliverySummaryScreen() {
   const total = order.driver_earnings + bonus;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.screenBg }}>
-      <Stack.Screen options={{ title: 'Delivery Summary', headerTitleStyle: { fontWeight: '700', color: '#fff' } }} />
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <Stack.Screen options={{ title: 'Delivery Summary', headerTitleStyle: { fontWeight: fontWeight.bold } }} />
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+      <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: spacing.xl }}>
         {/* Success Banner */}
         <View style={S.banner}>
-          <Text style={{ fontSize: 40, marginBottom: 8 }}>{'\u{2705}'}</Text>
+          <MaterialIcons name={ICONS.checkCircle} size={fontSize.display} color={colors.success} />
           <Text style={S.bannerTitle}>Delivery Complete!</Text>
           <Text style={S.bannerSub}>Order {order.order_number} has been delivered successfully.</Text>
         </View>
@@ -134,15 +160,15 @@ export default function DeliverySummaryScreen() {
         <View style={S.card}>
           <Text style={S.cardTitle}>Delivery Route</Text>
           <View style={S.locRow}>
-            <Text style={{ fontSize: 16, color: C.green }}>{'\u{1F3EA}'}</Text>
-            <View style={{ flex: 1, marginLeft: 10 }}>
+            <MaterialIcons name={ICONS.store} size={fontSize.md} color={colors.primary} />
+            <View style={{ flex: 1, marginLeft: spacing.sm }}>
               <Text style={S.locLabel}>FROM</Text>
               <Text style={S.locTitle}>{store?.name || 'Store'}</Text>
             </View>
           </View>
           <View style={[S.locRow, { marginBottom: 0 }]}>
-            <View style={S.dropPinSmall}><Text style={{ fontSize: 10, color: C.white }}>{'\u{1F4CD}'}</Text></View>
-            <View style={{ flex: 1, marginLeft: 10 }}>
+            <View style={S.dropPinSmall}><MaterialIcons name={ICONS.location} size={fontSize.xxs} color={colors.text} /></View>
+            <View style={{ flex: 1, marginLeft: spacing.sm }}>
               <Text style={S.locLabel}>TO</Text>
               <Text style={S.locTitle}>{order.delivery_address}</Text>
             </View>
@@ -179,7 +205,7 @@ export default function DeliverySummaryScreen() {
             <Text style={S.totalVal}>{fmtCurr(total)}</Text>
           </View>
           <View style={S.payMethodBadge}>
-            <Text style={{ fontSize: 18, color: C.label }}>{'\u{1F4B5}'}</Text>
+            <MaterialIcons name={ICONS.money} size={fontSize.lg} color={colors.textSecondary} />
             <Text style={S.payMethodText}>{fmtPay(order.payment_method)}</Text>
           </View>
         </View>
@@ -192,38 +218,3 @@ export default function DeliverySummaryScreen() {
     </SafeAreaView>
   );
 }
-
-const S = StyleSheet.create({
-  banner: {
-    alignItems: 'center', paddingVertical: 28, marginBottom: 12,
-  },
-  bannerTitle: { color: C.white, fontSize: 22, fontWeight: '700', marginBottom: 6 },
-  bannerSub: { color: C.label, fontSize: 14, textAlign: 'center' },
-  card: {
-    backgroundColor: C.cardBg, borderRadius: C.cardRadius, padding: 16, marginBottom: 12,
-    borderWidth: 1, borderColor: C.border,
-  },
-  cardTitle: { color: C.white, fontSize: 16, fontWeight: '700', marginBottom: 14 },
-  locRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 },
-  locLabel: { color: C.label, fontSize: 11, fontWeight: '600', letterSpacing: 0.5, marginBottom: 2 },
-  locTitle: { color: C.white, fontSize: 14, fontWeight: '700' },
-  dropPinSmall: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#7F1D1D', justifyContent: 'center', alignItems: 'center', marginTop: 1 },
-  custName: { color: C.white, fontSize: 16, fontWeight: '700', marginBottom: 4 },
-  custPhone: { color: C.label, fontSize: 14 },
-  payRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  lbl: { color: C.label, fontSize: 14 },
-  val: { color: C.nearWhite, fontSize: 14, fontWeight: '600' },
-  divider: { height: 1, backgroundColor: C.divider, marginVertical: 10 },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  totalLbl: { color: C.white, fontSize: 15, fontWeight: '700' },
-  totalVal: { color: C.green, fontSize: 16, fontWeight: '700' },
-  payMethodBadge: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: C.badgeGray,
-    paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8, marginTop: 12, gap: 8,
-  },
-  payMethodText: { color: C.nearWhite, fontSize: 14, fontWeight: '500' },
-  homeBtn: { backgroundColor: C.greenDark, borderRadius: C.cardRadius, paddingVertical: 14, alignItems: 'center', marginTop: 8 },
-  homeBtnText: { color: C.greenLight, fontSize: 16, fontWeight: '700' },
-  backBtn: { backgroundColor: C.greenDark, borderRadius: C.cardRadius, paddingVertical: 12, paddingHorizontal: 32 },
-  backBtnText: { color: C.greenLight, fontSize: 16, fontWeight: '700' },
-});

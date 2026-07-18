@@ -1,14 +1,12 @@
 import { Tabs } from 'expo-router';
-import { View, Text } from 'react-native';
-import { colors } from '../../../src/theme/colors';
+import { View } from 'react-native';
+import { useColors } from '../../../src/theme/ThemeProvider';
 import { NotificationsButton } from '../../../src/components/NotificationsButton';
 import { SignOutButton } from '../../../src/components/SignOutButton';
-
-function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
-  return <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.5 }}>{emoji}</Text>;
-}
+import { TabIcon } from '../../../src/components/ui/TabIcon';
 
 export default function CustomerLayout() {
+  const colors = useColors();
   return (
     <Tabs
       screenOptions={{
@@ -31,21 +29,21 @@ export default function CustomerLayout() {
         name="index"
         options={{
           title: 'Orders',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="📦" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon icon="orders" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="conversations"
         options={{
           title: 'Messages',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="💬" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon icon="chat" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="👤" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon icon="profile" focused={focused} />,
         }}
       />
       <Tabs.Screen

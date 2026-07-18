@@ -1,13 +1,15 @@
 import { Stack } from 'expo-router';
-import { theme } from '../../../src/theme/driver-theme';
+import { useColors } from '../../../src/theme/ThemeProvider';
+import { fontWeight } from '../../../src/theme/spacing';
 
 export default function NotificationsLayout() {
+  const colors = useColors();
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: theme.bg },
-        headerTintColor: theme.white,
-        headerTitleStyle: { fontWeight: '600' },
+        headerStyle: { backgroundColor: colors.background },
+        headerTintColor: colors.text,
+        headerTitleStyle: { fontWeight: fontWeight.semibold },
         headerShadowVisible: false,
       }}
     >

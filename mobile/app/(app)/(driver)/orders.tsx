@@ -7,13 +7,10 @@ import { useAuthStore } from '../../../src/store/auth-store';
 import { useDriverOrders } from '../../../src/hooks/use-driver-orders';
 import { DeliveryOrders, Stores } from '../../../src/types/database';
 import { calculateDistance } from '../../../src/lib/geo';
-
-const accentGreen = '#22C55E';
-const darkBg = '#121212';
-const cardBg = '#1E1E1E';
-const textWhite = '#FFFFFF';
-const textGray = '#9CA3AF';
-const textDim = '#6B6B6B';
+import { useColors } from '../../../src/theme/ThemeProvider';
+import { spacing, fontSize, borderRadius, fontWeight } from '../../../src/theme/index';
+import { MaterialIcons } from '@expo/vector-icons';
+import { ICONS } from '../../../src/constants/icons';
 
 type SortKey = 'distance' | 'price' | 'reward' | 'area';
 
@@ -25,6 +22,9 @@ const filters: { key: SortKey; label: string }[] = [
 ];
 
 export default function AvailableOrdersScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const cardStyles = useMemo(() => createCardStyles(colors), [colors]);
   const profile = useAuthStore((s) => s.profile);
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<DeliveryOrders[]>([]);
@@ -140,17 +140,17 @@ export default function AvailableOrdersScreen() {
     return sorted;
   }, [orders, activeFilter, driverLat, driverLng]);
 
-  if (loading) return <ActivityIndicator size="large" style={{ flex: 1, backgroundColor: darkBg }} />;
+  if (loading) return <ActivityIndicator size="large" style={{ flex: 1, backgroundColor: colors.background }} />;
 
   return (
     <SafeAreaView style={styles.root}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/(app)/(driver)'); }} style={styles.headerBtn}>
-          <Text style={styles.headerBtnText}>←</Text>
+          <MaterialIcons name={ICONS.back} size={fontSize.xxl} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{activeTab === 'available' ? 'Available Orders' : 'My Orders'}</Text>
         <TouchableOpacity onPress={() => { if (activeTab === 'available' && driverId) refreshAll(driverId); if (activeTab === 'active') refreshDriverOrders(); }} style={styles.headerBtn}>
-          <Text style={styles.headerBtnText}>↻</Text>
+          <MaterialIcons name={ICONS.refresh} size={fontSize.xxl} color={colors.text} />
         </TouchableOpacity>
       </View>
 
@@ -175,9 +175,12 @@ export default function AvailableOrdersScreen() {
                 style={[styles.filterChip, activeFilter === f.key && styles.filterChipActive]}
                 onPress={() => setActiveFilter(f.key)}
               >
-                <Text style={[styles.filterChipText, activeFilter === f.key && styles.filterChipTextActive]}>
-                  {f.label} ▾
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={[styles.filterChipText, activeFilter === f.key && styles.filterChipTextActive]}>
+                    {f.label}
+                  </Text>
+                  <MaterialIcons name={ICONS.dropdown} size={fontSize.sm} color={activeFilter === f.key ? colors.text : colors.textSecondary} />
+                </View>
               </TouchableOpacity>
             ))}
           </View>
@@ -189,7 +192,7 @@ export default function AvailableOrdersScreen() {
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               <View style={styles.emptyContent}>
-                <Text style={styles.emptyIcon}>🚚</Text>
+                <MaterialIcons name={ICONS.truck} size={fontSize.giant} color={colors.textSecondary} />
                 <Text style={styles.emptyTitle}>No available orders</Text>
                 <Text style={styles.emptySubtitle}>New orders will appear here in real-time</Text>
               </View>
@@ -222,7 +225,7 @@ export default function AvailableOrdersScreen() {
               <ActivityIndicator size="large" style={{ marginTop: 40 }} />
             ) : (
               <View style={styles.emptyContent}>
-                <Text style={styles.emptyIcon}>📦</Text>
+                <MaterialIcons name={ICONS.packageIcon} size={fontSize.giant} color={colors.textSecondary} />
                 <Text style={styles.emptyTitle}>No active orders</Text>
                 <Text style={styles.emptySubtitle}>Accepted orders will appear here</Text>
               </View>
@@ -232,20 +235,20 @@ export default function AvailableOrdersScreen() {
             <TouchableOpacity style={cardStyles.card} onPress={() => router.push(`/(app)/(driver)/${item.id}`)}>
               <View style={cardStyles.headerRow}>
                 <Text style={cardStyles.orderId}>DLV-{item.order_number ?? item.id.slice(0, 4).toUpperCase()}</Text>
-                <View style={[statusBadge, { backgroundColor: STATUS_BG[item.status] || '#2A2A2A' }]}>
-                  <Text style={statusBadgeText}>{STATUS_LABEL[item.status] || item.status.replace(/_/g, ' ')}</Text>
+                <View style={[statusBadge, { backgroundColor: getStatusBg(colors)[item.status] || colors.border }]}>
+                  <Text style={{ fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: colors.primaryDark }}>{STATUS_LABEL[item.status] || item.status.replace(/_/g, ' ')}</Text>
                 </View>
               </View>
               <View style={cardStyles.locationBlock}>
                 <View style={cardStyles.locationRow}>
-                  <Text style={{ fontSize: 16, color: accentGreen }}>{'\u{1F3EA}'}</Text>
+                  <MaterialIcons name={ICONS.store} size={fontSize.md} color={colors.primary} />
                   <View style={cardStyles.locationTextWrap}>
                     <Text style={cardStyles.locationLabel}>Pickup</Text>
                     <Text style={cardStyles.locationAddr}>{item.pickup_address}</Text>
                   </View>
                 </View>
                 <View style={cardStyles.locationRow}>
-                  <Text style={{ fontSize: 16 }}>{'\u{1F4CD}'}</Text>
+                  <MaterialIcons name={ICONS.location} size={fontSize.md} color={colors.text} />
                   <View style={cardStyles.locationTextWrap}>
                     <Text style={cardStyles.locationLabel}>Drop-off</Text>
                     <Text style={cardStyles.locationAddr}>{item.delivery_address}</Text>
@@ -280,6 +283,8 @@ function OrderCard({
   onAccept: () => void;
   onDetails: () => void;
 }) {
+  const colors = useColors();
+  const cardStyles = useMemo(() => createCardStyles(colors), [colors]);
   const distance = useMemo(() => {
     if (driverLat == null || driverLng == null) return null;
     const d = calculateDistance(driverLat, driverLng, order.pickup_latitude, order.pickup_longitude);
@@ -313,7 +318,7 @@ function OrderCard({
           </View>
         </View>
         <View style={cardStyles.locationRow}>
-          <Text style={cardStyles.pinIcon}>📍</Text>
+          <MaterialIcons name={ICONS.location} size={fontSize.md} color={colors.text} />
           <View style={cardStyles.locationTextWrap}>
             <Text style={cardStyles.locationLabel}>Drop-off</Text>
             <Text style={cardStyles.locationAddr}>{order.delivery_address}</Text>
@@ -351,70 +356,67 @@ function OrderCard({
   );
 }
 
-const cardStyles = StyleSheet.create({
-  card: { backgroundColor: cardBg, borderRadius: 16, padding: 16, marginBottom: 12, marginHorizontal: 16 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
-  orderId: { fontSize: 15, fontWeight: '700', color: textWhite },
-  priceWrap: { alignItems: 'flex-end' },
-  price: { fontSize: 16, fontWeight: '700', color: textWhite },
-  reward: { fontSize: 12, fontWeight: '600', color: accentGreen, marginTop: 2 },
-  locationBlock: { marginBottom: 8 },
-  locationRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
-  dotOuter: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: accentGreen, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
-  dotInner: { width: 8, height: 8, borderRadius: 4, backgroundColor: accentGreen },
-  pinIcon: { fontSize: 16, marginTop: 2 },
-  locationTextWrap: { flex: 1 },
-  locationLabel: { fontSize: 11, color: textGray, marginBottom: 2 },
-  locationAddr: { fontSize: 14, fontWeight: '600', color: textWhite, lineHeight: 18 },
-  metaRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4, paddingLeft: 28 },
-  metaCreated: { fontSize: 11, color: textDim },
-  metaStatus: { fontSize: 11, color: textDim, textTransform: 'capitalize' },
-  divider: { height: 1, backgroundColor: '#2A2A2A', marginVertical: 12 },
-  footerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  meta: { fontSize: 12, color: textGray, flex: 1 },
-  actionRow: { flexDirection: 'row', gap: 8 },
-  detailsBtn: { backgroundColor: '#2A2A2A', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 16 },
-  detailsBtnText: { fontSize: 13, fontWeight: '600', color: textWhite },
-  acceptBtn: { backgroundColor: accentGreen, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 20 },
-  acceptBtnDisabled: { opacity: 0.6 },
-  acceptBtnText: { fontSize: 13, fontWeight: '700', color: textWhite },
-});
-
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: darkBg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: darkBg },
-  headerBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerBtnText: { fontSize: 22, color: textWhite },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: textWhite, flex: 1, textAlign: 'center' },
-  filterRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 16 },
-  filterChip: { backgroundColor: cardBg, borderRadius: 20, paddingVertical: 8, paddingHorizontal: 16, borderWidth: 1, borderColor: '#2A2A2A' },
-  filterChipActive: { backgroundColor: accentGreen, borderColor: accentGreen },
-  filterChipText: { fontSize: 13, fontWeight: '500', color: textGray },
-  filterChipTextActive: { color: textWhite, fontWeight: '600' },
-  listContent: { paddingTop: 4, paddingBottom: 8 },
+const createStyles = (colors: ReturnType<typeof useColors>) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: spacing.sm + spacing.xs, backgroundColor: colors.background },
+  headerBtn: { width: spacing.xl + spacing.sm, height: spacing.xl + spacing.sm, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text, flex: 1, textAlign: 'center' },
+  filterRow: { flexDirection: 'row', paddingHorizontal: spacing.md, gap: spacing.sm, marginBottom: spacing.md },
+  filterChip: { backgroundColor: colors.surface, borderRadius: fontSize.xl, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderWidth: 1, borderColor: colors.border },
+  filterChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  filterChipText: { fontSize: fontSize.xs + 1, fontWeight: fontWeight.medium, color: colors.textSecondary },
+  filterChipTextActive: { color: colors.text, fontWeight: fontWeight.semibold },
+  listContent: { paddingTop: spacing.xs, paddingBottom: spacing.sm },
   emptyState: { flex: 1, justifyContent: 'center' },
   emptyContent: { alignItems: 'center', paddingTop: 80 },
-  emptyIcon: { fontSize: 48, marginBottom: 16 },
-  emptyTitle: { fontSize: 18, fontWeight: '600', color: textWhite, marginBottom: 8 },
-  emptySubtitle: { fontSize: 14, color: textGray, textAlign: 'center', paddingHorizontal: 40 },
-  refreshNote: { fontSize: 11, color: textDim, textAlign: 'center', paddingVertical: 12, backgroundColor: darkBg },
+  emptyTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.text, marginBottom: spacing.sm },
+  emptySubtitle: { fontSize: fontSize.sm, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: spacing.xl + spacing.sm },
+  refreshNote: { fontSize: fontSize.xxs + 1, color: colors.textTertiary, textAlign: 'center', paddingVertical: spacing.sm + spacing.xs, backgroundColor: colors.background },
   tabRow: {
-    flexDirection: 'row', paddingHorizontal: 16, gap: 0, marginBottom: 4,
-    backgroundColor: darkBg, borderBottomWidth: 1, borderBottomColor: '#2A2A2A',
+    flexDirection: 'row', paddingHorizontal: spacing.md, gap: 0, marginBottom: spacing.xs,
+    backgroundColor: colors.background, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
   tabBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    paddingVertical: 12, borderBottomWidth: 2, borderBottomColor: 'transparent',
+    paddingVertical: spacing.sm + spacing.xs, borderBottomWidth: 2, borderBottomColor: 'transparent',
   },
-  tabBtnActive: { borderBottomColor: accentGreen },
-  tabBtnText: { fontSize: 14, fontWeight: '600', color: textGray },
-  tabBtnTextActive: { color: textWhite },
+  tabBtnActive: { borderBottomColor: colors.primary },
+  tabBtnText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.textSecondary },
+  tabBtnTextActive: { color: colors.text },
   tabBadge: {
-    marginLeft: 6, backgroundColor: accentGreen, borderRadius: 10,
-    minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center',
-    paddingHorizontal: 6,
+    marginLeft: spacing.xs + 2, backgroundColor: colors.primary, borderRadius: fontSize.xxs,
+    minWidth: fontSize.xl, height: fontSize.xl, alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: spacing.xs + 2,
   },
-  tabBadgeText: { fontSize: 11, fontWeight: '700', color: '#fff' },
+  tabBadgeText: { fontSize: fontSize.xxs + 1, fontWeight: fontWeight.bold, color: colors.text },
+});
+
+const createCardStyles = (colors: ReturnType<typeof useColors>) => StyleSheet.create({
+  card: { backgroundColor: colors.surface, borderRadius: borderRadius.lg, padding: spacing.md, marginBottom: spacing.sm + spacing.xs, marginHorizontal: spacing.md },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.sm + spacing.xs },
+  orderId: { fontSize: fontSize.md - 1, fontWeight: fontWeight.bold, color: colors.text },
+  priceWrap: { alignItems: 'flex-end' },
+  price: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
+  reward: { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: colors.primary, marginTop: spacing.xs },
+  locationBlock: { marginBottom: spacing.sm },
+  locationRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm + 2, marginBottom: spacing.sm + 2 },
+  dotOuter: { width: fontSize.lg, height: fontSize.lg, borderRadius: fontSize.lg / 2, borderWidth: 2, borderColor: colors.primary, alignItems: 'center', justifyContent: 'center', marginTop: spacing.xs },
+  dotInner: { width: spacing.sm, height: spacing.sm, borderRadius: spacing.xs, backgroundColor: colors.primary },
+  locationTextWrap: { flex: 1 },
+  locationLabel: { fontSize: fontSize.xxs + 1, color: colors.textSecondary, marginBottom: spacing.xs },
+  locationAddr: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.text, lineHeight: fontSize.lg },
+  metaRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.xs, paddingLeft: fontSize.xxxl - spacing.xs },
+  metaCreated: { fontSize: fontSize.xxs + 1, color: colors.textTertiary },
+  metaStatus: { fontSize: fontSize.xxs + 1, color: colors.textTertiary, textTransform: 'capitalize' },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.sm + spacing.xs },
+  footerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  meta: { fontSize: fontSize.xs, color: colors.textSecondary, flex: 1 },
+  actionRow: { flexDirection: 'row', gap: spacing.sm },
+  detailsBtn: { backgroundColor: colors.border, borderRadius: fontSize.xxs, paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
+  detailsBtnText: { fontSize: fontSize.xs + 1, fontWeight: fontWeight.semibold, color: colors.text },
+  acceptBtn: { backgroundColor: colors.primary, borderRadius: fontSize.xxs, paddingVertical: spacing.sm, paddingHorizontal: fontSize.xl },
+  acceptBtnDisabled: { opacity: 0.6 },
+  acceptBtnText: { fontSize: fontSize.xs + 1, fontWeight: fontWeight.bold, color: colors.text },
 });
 
 const STATUS_LABEL: Record<string, string> = {
@@ -425,18 +427,14 @@ const STATUS_LABEL: Record<string, string> = {
   driver_arrived_destination: 'Arrived',
 };
 
-const STATUS_BG: Record<string, string> = {
-  driver_accepted: '#064E3B',
-  driver_arrived_store: '#713F12',
-  picked_up: '#1E3A5F',
-  on_the_way: '#064E3B',
-  driver_arrived_destination: '#713F12',
-};
+const getStatusBg = (colors: ReturnType<typeof useColors>): Record<string, string> => ({
+  driver_accepted: colors.primaryLight,
+  driver_arrived_store: colors.warningLight,
+  picked_up: colors.infoLight,
+  on_the_way: colors.primaryLight,
+  driver_arrived_destination: colors.warningLight,
+});
 
 const statusBadge = {
-  paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6,
+  paddingHorizontal: spacing.sm + 2, paddingVertical: spacing.xs, borderRadius: borderRadius.sm + 2,
 } as const;
-
-const statusBadgeText = {
-  fontSize: 12, fontWeight: '700' as const, color: '#4ADE80',
-};

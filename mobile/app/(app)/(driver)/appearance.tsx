@@ -2,35 +2,38 @@ import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-na
 import { Stack } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '../../../src/store/settings-store';
-import { useTheme } from '../../../src/theme/ThemeProvider';
+import { useColors } from '../../../src/theme/ThemeProvider';
+import { spacing, fontSize, borderRadius, fontWeight } from '../../../src/theme/index';
+import { MaterialIcons } from '@expo/vector-icons';
+import { ICONS } from '../../../src/constants/icons';
 
-const OPTIONS: { key: 'dark' | 'light' | 'system'; labelKey: string; icon: string }[] = [
-  { key: 'dark', labelKey: 'theme.dark', icon: '\u{1F31B}' },
-  { key: 'light', labelKey: 'theme.light', icon: '\u{2600}\u{FE0F}' },
-  { key: 'system', labelKey: 'theme.system', icon: '\u{1F4F1}' },
+const OPTIONS: { key: 'dark' | 'light' | 'system'; labelKey: string; icon: keyof typeof ICONS }[] = [
+  { key: 'dark', labelKey: 'theme.dark', icon: 'darkMode' },
+  { key: 'light', labelKey: 'theme.light', icon: 'lightMode' },
+  { key: 'system', labelKey: 'theme.system', icon: 'phone' },
 ];
 
 export default function AppearanceScreen() {
   const { t } = useTranslation();
-  const theme = useTheme();
+  const colors = useColors();
   const { theme: currentTheme, setTheme } = useSettingsStore();
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
-      <Stack.Screen options={{ title: t('theme.title'), headerTitleStyle: { fontWeight: '600', color: theme.white } }} />
-      <View style={{ padding: 16 }}>
-        <Text style={[S.desc, { color: theme.gray }]}>{t('theme.desc')}</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <Stack.Screen options={{ title: t('theme.title'), headerTitleStyle: { fontWeight: fontWeight.semibold, color: colors.text } }} />
+      <View style={{ padding: spacing.md }}>
+        <Text style={[S.desc, { color: colors.textSecondary }]}>{t('theme.desc')}</Text>
 
         {OPTIONS.map((opt) => (
           <TouchableOpacity
             key={opt.key}
-            style={[S.card, { backgroundColor: theme.card, borderColor: currentTheme === opt.key ? theme.greenDark : theme.border }]}
+            style={[S.card, { backgroundColor: colors.surface, borderColor: currentTheme === opt.key ? colors.primaryLight : colors.border, borderRadius: borderRadius.lg }]}
             onPress={() => setTheme(opt.key)}
           >
-            <Text style={{ fontSize: 24 }}>{opt.icon}</Text>
-            <Text style={[S.label, { color: theme.white }, currentTheme === opt.key && { color: theme.greenLight }]}>{t(opt.labelKey)}</Text>
+            <MaterialIcons name={ICONS[opt.icon]} size={fontSize.xxl} color={colors.text} />
+            <Text style={[S.label, { color: colors.text }, currentTheme === opt.key && { color: colors.primary }]}>{t(opt.labelKey)}</Text>
             {currentTheme === opt.key && (
-              <Text style={{ fontSize: 20, color: theme.green, marginLeft: 'auto' }}>{'\u{2713}'}</Text>
+              <MaterialIcons name={ICONS.check} size={fontSize.xl} color={colors.primary} style={{ marginLeft: 'auto' }} />
             )}
           </TouchableOpacity>
         ))}
@@ -40,7 +43,7 @@ export default function AppearanceScreen() {
 }
 
 const S = StyleSheet.create({
-  desc: { fontSize: 14, lineHeight: 20, marginBottom: 20 },
-  card: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1 },
-  label: { fontSize: 16, fontWeight: '600', marginLeft: 14 },
+  desc: { fontSize: fontSize.sm, lineHeight: fontSize.sm * 20 / 14, marginBottom: spacing.xl - spacing.xs },
+  card: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, marginBottom: spacing.sm + spacing.xs, borderWidth: 1 },
+  label: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, marginLeft: spacing.sm + spacing.xs + 2 },
 });

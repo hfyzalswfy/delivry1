@@ -70,7 +70,6 @@ export function useConversation(orderId: string | undefined) {
       });
 
       if (convError || !convId) {
-        console.error('ensure_conversation failed:', convError?.message);
         if (!cancelled) setLoading(false);
         return;
       }
@@ -157,7 +156,7 @@ export function useConversation(orderId: string | undefined) {
       message_type: messageType,
       content,
     });
-    if (error) console.error('sendMessage failed:', error.message);
+    if (error) { /* error handled silently */ }
     setSending(false);
   };
 

@@ -2,40 +2,15 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, SafeAreaView, Linking, Alert } from 'react-native';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { supabase } from '../../../src/lib/supabase';
 import { useAuthStore } from '../../../src/store/auth-store';
 import { useDriverLocation } from '../../../src/hooks/use-driver-location';
 import { DeliveryOrders, Stores } from '../../../src/types/database';
 import { calculateDistance, calculateETA } from '../../../src/lib/geo';
-
-const C = {
-  screenBg: '#0E1212',
-  cardBg: '#1A1D28',
-  white: '#FFFFFF',
-  nearWhite: '#F3F4F6',
-  label: '#6B7280',
-  green: '#22C55E',
-  greenDark: '#064E3B',
-  greenLight: '#4ADE80',
-  redDark: '#7F1D1D',
-  border: '#2A2D3A',
-  divider: '#2A2D3A',
-  callBg: '#064E3B',
-  badgeGray: '#2A2D3A',
-  cardRadius: 12,
-};
-
-const BADGE: Record<string, { label: string; bg: string; text: string }> = {
-  pending: { label: 'Pending', bg: '#1E3A5F', text: '#60A5FA' },
-  published: { label: 'Available', bg: '#064E3B', text: '#4ADE80' },
-  driver_accepted: { label: 'Accepted', bg: '#064E3B', text: '#4ADE80' },
-  driver_arrived_store: { label: 'At Store', bg: '#713F12', text: '#FBBF24' },
-  picked_up: { label: 'Picked Up', bg: '#1E3A5F', text: '#60A5FA' },
-  on_the_way: { label: 'On The Way', bg: '#064E3B', text: '#4ADE80' },
-  driver_arrived_destination: { label: 'Arrived', bg: '#713F12', text: '#FBBF24' },
-  delivered: { label: 'Delivered', bg: '#065F46', text: '#6EE7B7' },
-  cancelled: { label: 'Cancelled', bg: '#7F1D1D', text: '#FCA5A5' },
-};
+import { useColors } from '../../../src/theme/ThemeProvider';
+import { spacing, fontSize, borderRadius, fontWeight } from '../../../src/theme/spacing';
+import { ICONS } from '../../../src/constants/icons';
 
 function fmtDate(s: string): string {
   const d = new Date(s);
@@ -56,11 +31,6 @@ function fmtPay(m: string): string {
   return map[m] || m;
 }
 
-function payIcon(m: string): string {
-  const map: Record<string, string> = { cash: '\u{1F4B5}', card: '\u{1F4B3}', wallet: '\u{1F45B}' };
-  return map[m] || '\u{1F4B5}';
-}
-
 function fmtDist(km: number): string {
   return km < 1 ? `${(km * 1000).toFixed(0)} m` : `${km.toFixed(1)} km`;
 }
@@ -70,6 +40,20 @@ function fmtETA(min: number): string {
 }
 
 export default function DriverOrderDetailScreen() {
+  const colors = useColors();
+
+  const BADGE: Record<string, { label: string; bg: string; text: string }> = {
+    pending: { label: 'Pending', bg: colors.infoLight, text: colors.info },
+    published: { label: 'Available', bg: colors.primaryLight, text: colors.primary },
+    driver_accepted: { label: 'Accepted', bg: colors.primaryLight, text: colors.primary },
+    driver_arrived_store: { label: 'At Store', bg: colors.warningLight, text: colors.warning },
+    picked_up: { label: 'Picked Up', bg: colors.infoLight, text: colors.info },
+    on_the_way: { label: 'On The Way', bg: colors.primaryLight, text: colors.primary },
+    driver_arrived_destination: { label: 'Arrived', bg: colors.warningLight, text: colors.warning },
+    delivered: { label: 'Delivered', bg: colors.successLight, text: colors.success },
+    cancelled: { label: 'Cancelled', bg: colors.dangerLight, text: colors.danger },
+  };
+
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
   const profile = useAuthStore((s) => s.profile);
 
@@ -143,20 +127,136 @@ export default function DriverOrderDetailScreen() {
   const bonus = order?.reward_bonus ?? 0;
   const total = (order?.driver_earnings ?? 0) + bonus;
 
+  const S = useMemo(() => StyleSheet.create({
+    center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    cardTitle: {
+      color: colors.text,
+      fontSize: fontSize.md,
+      fontWeight: fontWeight.bold,
+      marginBottom: spacing.md,
+    },
+    row: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    lbl: { color: colors.textSecondary, fontSize: fontSize.sm },
+    val: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+    badge: {
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      borderRadius: borderRadius.sm,
+    },
+    badgeText: { fontSize: fontSize.xs, fontWeight: fontWeight.bold },
+    rtSec: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      marginBottom: spacing.md,
+    },
+    rtLeft: { flexDirection: 'row', flex: 1, alignItems: 'flex-start' },
+    rtLabel: { color: colors.textSecondary, fontSize: fontSize.xxs, fontWeight: fontWeight.semibold, letterSpacing: 0.5, marginBottom: spacing.xs },
+    rtTitle: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.bold, marginBottom: spacing.xs },
+    rtAddr: { color: colors.textSecondary, fontSize: fontSize.sm },
+    mapBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.primaryLight,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 6,
+      borderRadius: borderRadius.md,
+      gap: spacing.xs,
+      marginLeft: spacing.sm,
+      marginTop: spacing.xs,
+    },
+    mapBtnText: { color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+    dropPin: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: colors.dangerLight,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: spacing.xs,
+    },
+    divider: { height: 1, backgroundColor: colors.border, marginBottom: spacing.sm },
+    tripRow: { flexDirection: 'row', justifyContent: 'flex-start', gap: spacing.lg },
+    tripItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    tripText: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.medium },
+    custRow: { flexDirection: 'row', alignItems: 'center' },
+    custName: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold, marginBottom: spacing.xs },
+    custPhone: { color: colors.textSecondary, fontSize: fontSize.sm },
+    callBtn: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.primaryLight,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginLeft: spacing.md,
+    },
+    payRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.sm,
+    },
+    totalLbl: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+    totalVal: { color: colors.primary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+    payMethodBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.borderLight,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.sm,
+      borderRadius: borderRadius.md,
+      marginTop: spacing.sm,
+      gap: spacing.sm,
+    },
+    payMethodText: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.medium },
+    btnPrimary: {
+      backgroundColor: colors.primaryLight,
+      borderRadius: borderRadius.lg,
+      paddingVertical: spacing.sm,
+      alignItems: 'center',
+      marginTop: spacing.sm,
+    },
+    btnPrimaryText: { color: colors.primary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+    btnSecondary: {
+      backgroundColor: colors.borderLight,
+      borderRadius: borderRadius.lg,
+      paddingVertical: spacing.sm,
+      alignItems: 'center',
+      marginTop: spacing.sm,
+    },
+    btnSecondaryText: { color: colors.textSecondary, fontSize: fontSize.md, fontWeight: fontWeight.semibold },
+  }), [colors]);
+
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.screenBg }}>
-        <Stack.Screen options={{ title: 'Order Details', headerTitleStyle: { fontWeight: '700', color: '#fff' } }} />
-        <View style={S.center}><ActivityIndicator size="large" color={C.green} /></View>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <Stack.Screen options={{ title: 'Order Details', headerTitleStyle: { fontWeight: fontWeight.bold } }} />
+        <View style={S.center}><ActivityIndicator size="large" color={colors.primary} /></View>
       </SafeAreaView>
     );
   }
 
   if (!order) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.screenBg }}>
-        <Stack.Screen options={{ title: 'Order Details', headerTitleStyle: { fontWeight: '700', color: '#fff' } }} />
-        <View style={S.center}><Text style={{ color: C.label, fontSize: 16 }}>Order not found</Text></View>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <Stack.Screen options={{ title: 'Order Details', headerTitleStyle: { fontWeight: fontWeight.bold } }} />
+        <View style={S.center}><Text style={{ color: colors.textSecondary, fontSize: fontSize.md }}>Order not found</Text></View>
       </SafeAreaView>
     );
   }
@@ -178,9 +278,9 @@ export default function DriverOrderDetailScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.screenBg }}>
-      <Stack.Screen options={{ title: 'Order Details', headerTitleStyle: { fontWeight: '700', color: '#fff' } }} />
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <Stack.Screen options={{ title: 'Order Details', headerTitleStyle: { fontWeight: fontWeight.bold } }} />
+      <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: spacing.xl }}>
         {/* ────────── ORDER INFO CARD ────────── */}
         <View style={S.card}>
           <View style={S.row}>
@@ -208,15 +308,15 @@ export default function DriverOrderDetailScreen() {
           {/* Pickup */}
           <View style={S.rtSec}>
             <View style={S.rtLeft}>
-              <Text style={{ fontSize: 20, color: C.green, marginTop: 2 }}>{'\u{1F3EA}'}</Text>
-              <View style={{ flex: 1, marginLeft: 12 }}>
+              <MaterialIcons name={ICONS.store} size={fontSize.xl} color={colors.primary} />
+              <View style={{ flex: 1, marginLeft: spacing.sm }}>
                 <Text style={S.rtLabel}>PICKUP</Text>
                 <Text style={S.rtTitle}>{store?.name || 'Store'}</Text>
                 <Text style={S.rtAddr}>{order.pickup_address}</Text>
               </View>
             </View>
             <TouchableOpacity onPress={openMap} style={S.mapBtn} activeOpacity={0.7}>
-              <Text style={{ fontSize: 12, color: C.green }}>{'\u{1F5FA}'}</Text>
+              <MaterialIcons name={ICONS.map} size={fontSize.xs} color={colors.primary} />
               <Text style={S.mapBtnText}>Map</Text>
             </TouchableOpacity>
           </View>
@@ -224,9 +324,9 @@ export default function DriverOrderDetailScreen() {
           {/* Drop-off */}
           <View style={S.rtSec}>
             <View style={S.dropPin}>
-              <Text style={{ fontSize: 13, color: C.white }}>{'\u{1F4CD}'}</Text>
+              <MaterialIcons name={ICONS.location} size={fontSize.sm} color={colors.text} />
             </View>
-            <View style={{ flex: 1, marginLeft: 12 }}>
+            <View style={{ flex: 1, marginLeft: spacing.sm }}>
               <Text style={S.rtLabel}>DROP-OFF</Text>
               <Text style={S.rtTitle}>{order.delivery_address}</Text>
             </View>
@@ -236,11 +336,11 @@ export default function DriverOrderDetailScreen() {
           <View style={S.divider} />
           <View style={S.tripRow}>
             <View style={S.tripItem}>
-              <Text style={{ fontSize: 14, color: C.label }}>{'\u{1F4CD}'}</Text>
+              <MaterialIcons name={ICONS.location} size={fontSize.sm} color={colors.textSecondary} />
               <Text style={S.tripText}>{distKm != null ? fmtDist(distKm) : '—'}</Text>
             </View>
             <View style={S.tripItem}>
-              <Text style={{ fontSize: 14, color: C.label }}>{'\u{23F1}'}</Text>
+              <MaterialIcons name={ICONS.timer} size={fontSize.sm} color={colors.textSecondary} />
               <Text style={S.tripText}>{etaMin != null ? fmtETA(etaMin) : '—'}</Text>
             </View>
           </View>
@@ -255,7 +355,7 @@ export default function DriverOrderDetailScreen() {
               <Text style={S.custPhone}>{order.customer_phone}</Text>
             </View>
             <TouchableOpacity onPress={callCustomer} style={S.callBtn} activeOpacity={0.7}>
-              <Text style={{ fontSize: 22, color: C.green }}>{'\u{1F4DE}'}</Text>
+              <MaterialIcons name={ICONS.phone} size={fontSize.xxl} color={colors.primary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -276,13 +376,13 @@ export default function DriverOrderDetailScreen() {
             </View>
           )}
 
-          <View style={[S.payRow, { marginTop: 8 }]}>
+          <View style={[S.payRow, { marginTop: spacing.sm }]}>
             <Text style={S.totalLbl}>Total Earnings</Text>
             <Text style={S.totalVal}>{fmtCurr(total)}</Text>
           </View>
 
           <View style={S.payMethodBadge}>
-            <Text style={{ fontSize: 18, color: C.label }}>{payIcon(order.payment_method)}</Text>
+            <MaterialIcons name={ICONS.money} size={fontSize.lg} color={colors.textSecondary} />
             <Text style={S.payMethodText}>{fmtPay(order.payment_method)}</Text>
           </View>
         </View>
@@ -325,138 +425,3 @@ export default function DriverOrderDetailScreen() {
     </SafeAreaView>
   );
 }
-
-const S = StyleSheet.create({
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-
-  card: {
-    backgroundColor: C.cardBg,
-    borderRadius: C.cardRadius,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: C.border,
-  },
-
-  cardTitle: {
-    color: C.white,
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 16,
-  },
-
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: C.divider,
-  },
-
-  lbl: { color: C.label, fontSize: 14 },
-  val: { color: C.nearWhite, fontSize: 14, fontWeight: '600' },
-
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  badgeText: { fontSize: 12, fontWeight: '700' },
-
-  // Route
-  rtSec: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  rtLeft: { flexDirection: 'row', flex: 1, alignItems: 'flex-start' },
-  rtLabel: { color: C.label, fontSize: 11, fontWeight: '600', letterSpacing: 0.5, marginBottom: 2 },
-  rtTitle: { color: C.white, fontSize: 15, fontWeight: '700', marginBottom: 2 },
-  rtAddr: { color: C.label, fontSize: 13 },
-
-  mapBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: C.greenDark,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    gap: 4,
-    marginLeft: 12,
-    marginTop: 2,
-  },
-  mapBtnText: { color: C.green, fontSize: 13, fontWeight: '600' },
-
-  dropPin: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: C.redDark,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-
-  divider: { height: 1, backgroundColor: C.divider, marginBottom: 12 },
-
-  tripRow: { flexDirection: 'row', justifyContent: 'flex-start', gap: 24 },
-  tripItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  tripText: { color: C.nearWhite, fontSize: 13, fontWeight: '500' },
-
-  // Customer
-  custRow: { flexDirection: 'row', alignItems: 'center' },
-  custName: { color: C.white, fontSize: 16, fontWeight: '700', marginBottom: 4 },
-  custPhone: { color: C.label, fontSize: 14 },
-  callBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: C.callBg,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 16,
-  },
-
-  // Payment
-  payRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  totalLbl: { color: C.white, fontSize: 15, fontWeight: '700' },
-  totalVal: { color: C.green, fontSize: 16, fontWeight: '700' },
-
-  payMethodBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: C.badgeGray,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginTop: 12,
-    gap: 8,
-  },
-  payMethodText: { color: C.nearWhite, fontSize: 14, fontWeight: '500' },
-
-  // Buttons
-  btnPrimary: {
-    backgroundColor: C.greenDark,
-    borderRadius: C.cardRadius,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  btnPrimaryText: { color: C.greenLight, fontSize: 16, fontWeight: '700' },
-
-  btnSecondary: {
-    backgroundColor: C.badgeGray,
-    borderRadius: C.cardRadius,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  btnSecondaryText: { color: C.label, fontSize: 16, fontWeight: '600' },
-});

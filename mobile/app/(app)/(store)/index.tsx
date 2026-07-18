@@ -1,23 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, SafeAreaView } from 'react-native';
 import { Link, router } from 'expo-router';
+import { MaterialIcons } from '@expo/vector-icons';
+import { ICONS } from '../../../src/constants/icons';
 import { supabase } from '../../../src/lib/supabase';
 import { useAuthStore } from '../../../src/store/auth-store';
-import { colors } from '../../../src/theme/colors';
-import { spacing, fontSize, borderRadius } from '../../../src/theme/spacing';
+import { useColors } from '../../../src/theme/ThemeProvider';
+import { spacing, fontSize, borderRadius, fontWeight } from '../../../src/theme/spacing';
 import { DeliveryOrders } from '../../../src/types/database';
 
-const statusColors: Record<string, string> = {
-  pending: colors.statusDraft,
-  driver_accepted: colors.statusAssigned,
-  driver_arrived_store: colors.statusPublished,
-  picked_up: colors.statusPickedUp,
-  on_the_way: colors.statusInTransit,
-  delivered: colors.statusDelivered,
-  cancelled: colors.statusCancelled,
-};
-
 export default function StoreOrdersScreen() {
+  const colors = useColors();
+
+  const statusColors: Record<string, string> = {
+    pending: colors.statusDraft,
+    driver_accepted: colors.statusAssigned,
+    driver_arrived_store: colors.statusPublished,
+    picked_up: colors.statusPickedUp,
+    on_the_way: colors.statusInTransit,
+    delivered: colors.statusDelivered,
+    cancelled: colors.statusCancelled,
+  };
+
   const profile = useAuthStore((s) => s.profile);
   const [orders, setOrders] = useState<DeliveryOrders[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,7 +65,24 @@ export default function StoreOrdersScreen() {
     };
   }, [profile?.id]);
 
-  if (loading) return <ActivityIndicator size="large" style={{ flex: 1 }} />;
+  const styles = useMemo(() => StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background, padding: spacing.md },
+    createButton: { backgroundColor: colors.primary, borderRadius: borderRadius.md, padding: spacing.md, alignItems: 'center', marginBottom: spacing.md },
+    createButtonText: { color: colors.white, fontSize: fontSize.md, fontWeight: fontWeight.semibold },
+    emptyState: { flex: 1, justifyContent: 'center' },
+    emptyContent: { alignItems: 'center' },
+    emptyTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.text },
+    emptySubtitle: { fontSize: fontSize.sm, color: colors.textSecondary, textAlign: 'center' },
+    orderCard: { backgroundColor: colors.surface, borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.sm, borderWidth: 1, borderColor: colors.border },
+    orderHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs },
+    statusDot: { width: 8, height: 8, borderRadius: borderRadius.sm, marginRight: spacing.sm },
+    orderStatus: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, flex: 1 },
+    orderPrice: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.primary },
+    customerName: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.text },
+    route: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: 2 },
+  }), [colors]);
+
+  if (loading) return <ActivityIndicator size="large" style={{ flex: 1, backgroundColor: colors.background }} />;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -76,7 +97,7 @@ export default function StoreOrdersScreen() {
         contentContainerStyle={orders.length === 0 ? styles.emptyState : undefined}
         ListEmptyComponent={
           <View style={styles.emptyContent}>
-            <Text style={styles.emptyIcon}>📋</Text>
+            <MaterialIcons name={ICONS.clipboard} size={fontSize.giant} color={colors.textSecondary} style={{ marginBottom: spacing.md }} />
             <Text style={styles.emptyTitle}>No orders yet</Text>
             <Text style={styles.emptySubtitle}>Create your first delivery order to get started</Text>
           </View>
@@ -103,20 +124,3 @@ export default function StoreOrdersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background, padding: spacing.md },
-  createButton: { backgroundColor: colors.primary, borderRadius: borderRadius.md, padding: spacing.md, alignItems: 'center', marginBottom: spacing.md },
-  createButtonText: { color: '#fff', fontSize: fontSize.md, fontWeight: '600' },
-  emptyState: { flex: 1, justifyContent: 'center' },
-  emptyContent: { alignItems: 'center' },
-  emptyIcon: { fontSize: 48, marginBottom: spacing.md },
-  emptyTitle: { fontSize: fontSize.lg, fontWeight: '600', color: colors.text },
-  emptySubtitle: { fontSize: fontSize.sm, color: colors.textSecondary, textAlign: 'center' },
-  orderCard: { backgroundColor: colors.surface, borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.sm, borderWidth: 1, borderColor: colors.border },
-  orderHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs },
-  statusDot: { width: 8, height: 8, borderRadius: 4, marginRight: spacing.sm },
-  orderStatus: { fontSize: fontSize.xs, fontWeight: '700', flex: 1 },
-  orderPrice: { fontSize: fontSize.md, fontWeight: '700', color: colors.primary },
-  customerName: { fontSize: fontSize.md, fontWeight: '600', color: colors.text },
-  route: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: 2 },
-});

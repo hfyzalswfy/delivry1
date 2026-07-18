@@ -1,10 +1,13 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, SafeAreaView } from 'react-native';
 import { Stack } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../../src/lib/supabase';
 import { useAuthStore } from '../../../src/store/auth-store';
-import { theme } from '../../../src/theme/driver-theme';
+import { useColors } from '../../../src/theme/ThemeProvider';
+import { spacing, fontSize, borderRadius, fontWeight } from '../../../src/theme/index';
+import { MaterialIcons } from '@expo/vector-icons';
+import { ICONS } from '../../../src/constants/icons';
 
 interface Transaction {
   id: string;
@@ -34,16 +37,16 @@ function fmtDate(s: string): string {
   return `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${t}`;
 }
 
-function transactionIcon(type: string): string {
-  const map: Record<string, string> = {
-    deposit: '\u{1F4B5}',
-    withdrawal: '\u{1F4B4}',
-    order_payment: '\u{1F3EA}',
-    commission: '\u{1F4B0}',
-    refund: '\u{1F504}',
-    payout: '\u{1F4B8}',
+function transactionIcon(type: string): keyof typeof ICONS {
+  const map: Record<string, keyof typeof ICONS> = {
+    deposit: 'money',
+    withdrawal: 'moneyOff',
+    order_payment: 'store',
+    commission: 'payment',
+    refund: 'refresh',
+    payout: 'money',
   };
-  return map[type] || '\u{1F4B0}';
+  return map[type] || 'payment';
 }
 
 function transactionLabel(type: string): string {
@@ -59,6 +62,7 @@ function transactionLabel(type: string): string {
 }
 
 export default function WalletScreen() {
+  const colors = useColors();
   const profile = useAuthStore((s) => s.profile);
   const [loading, setLoading] = useState(true);
   const [balance, setBalance] = useState<number | null>(null);
@@ -69,6 +73,7 @@ export default function WalletScreen() {
   const [weekEarnings, setWeekEarnings] = useState<EarningsPeriod>({ deliveries: 0, earnings: 0 });
   const [monthEarnings, setMonthEarnings] = useState<EarningsPeriod>({ deliveries: 0, earnings: 0 });
   const cancelledRef = useRef(false);
+  const S = useMemo(() => createStyles(colors, spacing, fontSize, borderRadius, fontWeight), [colors]);
 
   const fetchData = useCallback(async () => {
     if (!profile) return;
@@ -152,23 +157,23 @@ export default function WalletScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
-        <Stack.Screen options={{ title: 'Wallet', headerTitleStyle: { fontWeight: '600', color: theme.white } }} />
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <Stack.Screen options={{ title: 'Wallet', headerTitleStyle: { fontWeight: fontWeight.semibold, color: colors.text } }} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color={theme.green} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
-      <Stack.Screen options={{ title: 'Wallet', headerTitleStyle: { fontWeight: '600', color: theme.white } }} />
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <Stack.Screen options={{ title: 'Wallet', headerTitleStyle: { fontWeight: fontWeight.semibold, color: colors.text } }} />
 
       <FlatList
         data={transactions}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: 24 }}
+        contentContainerStyle={{ paddingBottom: spacing.lg }}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <>
@@ -176,7 +181,7 @@ export default function WalletScreen() {
             <View style={S.balanceCard}>
               <TouchableOpacity onPress={() => setShowBalance(!showBalance)} style={S.balanceHeader}>
                 <Text style={S.balanceLabel}>Total Balance</Text>
-                <Text style={S.eyeIcon}>{showBalance ? '\u{1F441}' : '\u{1F648}'}</Text>
+                <MaterialIcons name={showBalance ? ICONS.visibility : ICONS.visibilityOff} size={fontSize.xl} color={colors.textSecondary} />
               </TouchableOpacity>
               <Text style={S.balanceValue}>
                 {showBalance ? fmtCurr(balance ?? 0) : '••••••'}
@@ -209,8 +214,8 @@ export default function WalletScreen() {
           </>
         }
         ListEmptyComponent={
-          <View style={{ alignItems: 'center', paddingTop: 40 }}>
-            <Text style={{ fontSize: 14, color: theme.gray }}>No transactions yet</Text>
+          <View style={{ alignItems: 'center', paddingTop: spacing.xxl }}>
+            <Text style={{ fontSize: fontSize.sm, color: colors.textSecondary }}>No transactions yet</Text>
           </View>
         }
         renderItem={({ item }) => {
@@ -218,13 +223,13 @@ export default function WalletScreen() {
           return (
             <View style={S.txCard}>
               <View style={S.txLeft}>
-                <Text style={{ fontSize: 20 }}>{transactionIcon(item.type)}</Text>
-                <View style={{ flex: 1, marginLeft: 12 }}>
+                <MaterialIcons name={ICONS[transactionIcon(item.type)]} size={fontSize.xl} color={colors.text} />
+                <View style={{ flex: 1, marginLeft: spacing.sm }}>
                   <Text style={S.txType}>{transactionLabel(item.type)}</Text>
                   <Text style={S.txDesc}>{item.description || fmtDate(item.created_at)}</Text>
                 </View>
               </View>
-              <Text style={[S.txAmount, { color: isPositive ? theme.greenLight : theme.red }]}>
+              <Text style={[S.txAmount, { color: isPositive ? colors.primary : colors.danger }]}>
                 {isPositive ? '+' : ''}{fmtCurr(item.amount)}
               </Text>
             </View>
@@ -235,85 +240,82 @@ export default function WalletScreen() {
   );
 }
 
-const S = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useColors>, spacing: any, fontSize: any, borderRadius: any, fontWeight: any) => StyleSheet.create({
   balanceCard: {
-    backgroundColor: theme.card,
-    borderRadius: theme.radius.lg,
-    marginHorizontal: 16,
-    marginTop: 16,
-    padding: theme.spacing.xl,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.md,
+    padding: spacing.xl,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: colors.border,
   },
   balanceHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   balanceLabel: {
-    fontSize: theme.fontSize.md,
-    color: theme.gray,
-    fontWeight: theme.fontWeight.medium,
-  },
-  eyeIcon: {
-    fontSize: 20,
+    fontSize: fontSize.md,
+    color: colors.textSecondary,
+    fontWeight: fontWeight.medium,
   },
   balanceValue: {
-    fontSize: theme.fontSize.hero,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.green,
+    fontSize: fontSize.hero,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
   },
   periodRow: {
     flexDirection: 'row',
-    marginHorizontal: 16,
-    marginTop: 12,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm + spacing.xs,
   },
   periodCard: {
     flex: 1,
-    backgroundColor: theme.card,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: colors.border,
   },
   periodLabel: {
-    fontSize: theme.fontSize.xs,
-    color: theme.gray,
-    fontWeight: theme.fontWeight.semibold,
-    marginBottom: 4,
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    fontWeight: fontWeight.semibold,
+    marginBottom: spacing.xs,
   },
   periodValue: {
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.white,
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
     marginBottom: 2,
   },
   periodDeliveries: {
-    fontSize: theme.fontSize.xs,
-    color: theme.dim,
+    fontSize: fontSize.xs,
+    color: colors.textTertiary,
   },
   sectionHeader: {
-    marginHorizontal: 16,
-    marginTop: 24,
-    marginBottom: 8,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
   },
   sectionTitle: {
-    fontSize: theme.fontSize.xl,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.white,
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
   },
   txCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: theme.card,
-    marginHorizontal: 16,
-    marginBottom: 8,
-    padding: theme.spacing.lg,
-    borderRadius: theme.radius.lg,
+    backgroundColor: colors.surface,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: colors.border,
   },
   txLeft: {
     flexDirection: 'row',
@@ -321,17 +323,17 @@ const S = StyleSheet.create({
     flex: 1,
   },
   txType: {
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.white,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.text,
   },
   txDesc: {
-    fontSize: theme.fontSize.sm,
-    color: theme.gray,
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   txAmount: {
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.bold,
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
   },
 });

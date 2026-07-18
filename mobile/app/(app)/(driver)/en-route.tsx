@@ -1,14 +1,18 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, SafeAreaView, Linking, Alert } from 'react-native';
 import { useLocalSearchParams, router, Stack } from 'expo-router';
-import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
+import { Marker, Polyline } from 'react-native-maps';
+import SharedMap, { SharedMapRef } from '../../../src/components/ui/SharedMap';
+import { MaterialIcons } from '@expo/vector-icons';
 import { supabase } from '../../../src/lib/supabase';
 import { useAuthStore } from '../../../src/store/auth-store';
 import { useDriverLocation } from '../../../src/hooks/use-driver-location';
 import { arriveAtDestination, startDelivery } from '../../../src/services/delivery-service';
 import { DeliveryOrders, Stores } from '../../../src/types/database';
 import { calculateDistance, calculateETA } from '../../../src/lib/geo';
-import { theme } from '../../../src/theme/driver-theme';
+import { useColors } from '../../../src/theme/ThemeProvider';
+import { spacing, fontSize, borderRadius, fontWeight } from '../../../src/theme/index';
+import { ICONS } from '../../../src/constants/icons';
 
 const STEPS = [
   { key: 'driver_accepted', label: 'Accepted' },
@@ -31,6 +35,8 @@ function fmtETA(min: number): string {
 }
 
 export default function EnRouteScreen() {
+  const colors = useColors();
+  const S = useMemo(() => createStyles(colors, spacing, fontSize, borderRadius, fontWeight), [colors]);
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
   const profile = useAuthStore((s) => s.profile);
 
@@ -43,7 +49,7 @@ export default function EnRouteScreen() {
   const [accessError, setAccessError] = useState<string | null>(null);
   const [arriving, setArriving] = useState(false);
 
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<SharedMapRef>(null);
 
   const shouldTrack = !!(order && driverId && order.assigned_driver_id === driverId
     && ['picked_up', 'on_the_way'].includes(order.status));
@@ -136,9 +142,9 @@ export default function EnRouteScreen() {
   const currentStepIndex = order ? STEPS.findIndex((s) => s.key === order.status) : -1;
 
   const badgeConfig: Record<string, { label: string; bg: string; text: string }> = {
-    on_the_way: { label: 'On The Way', bg: theme.statusOnWay, text: theme.statusOnWayText },
+    on_the_way: { label: 'On The Way', bg: colors.primaryLight, text: colors.primary },
   };
-  const badge = order ? (badgeConfig[order.status] || { label: order.status.replace(/_/g, ' '), bg: theme.badgeGray, text: theme.label }) : null;
+  const badge = order ? (badgeConfig[order.status] || { label: order.status.replace(/_/g, ' '), bg: colors.borderLight, text: colors.textSecondary }) : null;
 
   const startNavigation = () => {
     if (!order) { Alert.alert('Error', 'Order data not available'); return; }
@@ -178,20 +184,20 @@ export default function EnRouteScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
-        <Stack.Screen options={{ title: 'Active Delivery', headerTitleStyle: { fontWeight: '600', color: theme.white } }} />
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color={theme.green} /></View>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <Stack.Screen options={{ title: 'Active Delivery', headerTitleStyle: { fontWeight: fontWeight.semibold, color: colors.text } }} />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color={colors.primary} /></View>
       </SafeAreaView>
     );
   }
 
   if (accessError) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
-        <Stack.Screen options={{ title: 'Active Delivery', headerTitleStyle: { fontWeight: '600', color: theme.white } }} />
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 }}>
-          <Text style={{ fontSize: 20, marginBottom: 12 }}>{'\u{26A0}\u{FE0F}'}</Text>
-          <Text style={{ color: theme.nearWhite, fontSize: 16, textAlign: 'center', marginBottom: 24 }}>{accessError}</Text>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <Stack.Screen options={{ title: 'Active Delivery', headerTitleStyle: { fontWeight: fontWeight.semibold, color: colors.text } }} />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.lg }}>
+          <MaterialIcons name={ICONS.warning} size={fontSize.xl} color={colors.warning} />
+          <Text style={{ color: colors.text, fontSize: fontSize.md, textAlign: 'center', marginBottom: spacing.lg }}>{accessError}</Text>
           <TouchableOpacity style={S.backBtn} onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/(app)/(driver)'); }}>
             <Text style={S.backBtnText}>Go Back</Text>
           </TouchableOpacity>
@@ -202,9 +208,9 @@ export default function EnRouteScreen() {
 
   if (!order) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
-        <Stack.Screen options={{ title: 'Active Delivery', headerTitleStyle: { fontWeight: '600', color: theme.white } }} />
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text style={{ color: theme.label, fontSize: 16 }}>Order not found</Text></View>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <Stack.Screen options={{ title: 'Active Delivery', headerTitleStyle: { fontWeight: fontWeight.semibold, color: colors.text } }} />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text style={{ color: colors.textSecondary, fontSize: fontSize.md }}>Order not found</Text></View>
       </SafeAreaView>
     );
   }
@@ -220,29 +226,29 @@ export default function EnRouteScreen() {
   const total = order.driver_earnings + bonus;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
-      <Stack.Screen options={{ title: 'Active Delivery', headerTitleStyle: { fontWeight: '600', color: theme.white } }} />
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <Stack.Screen options={{ title: 'Active Delivery', headerTitleStyle: { fontWeight: fontWeight.semibold, color: colors.text } }} />
 
       <View style={{ flex: 1 }}>
         {/* MAP */}
         <View style={S.mapContainer}>
-          <MapView ref={mapRef} style={S.map} provider={PROVIDER_DEFAULT} initialRegion={mapRegion} loadingEnabled>
+          <SharedMap ref={mapRef} style={S.map} initialRegion={mapRegion} loadingEnabled>
             {driverLat != null && driverLng != null && (
               <Marker coordinate={{ latitude: driverLat, longitude: driverLng }} title="You" pinColor="#3B82F6" />
             )}
             <Marker coordinate={{ latitude: order.pickup_latitude, longitude: order.pickup_longitude }} title={store?.name || 'Store'} pinColor="green" />
             <Marker coordinate={{ latitude: order.delivery_latitude, longitude: order.delivery_longitude }} title="Customer" pinColor="red" />
-            <Polyline coordinates={[{ latitude: order.pickup_latitude, longitude: order.pickup_longitude }, { latitude: order.delivery_latitude, longitude: order.delivery_longitude }]} strokeColor={theme.green} strokeWidth={3} />
-          </MapView>
+            <Polyline coordinates={[{ latitude: order.pickup_latitude, longitude: order.pickup_longitude }, { latitude: order.delivery_latitude, longitude: order.delivery_longitude }]} strokeColor={colors.primary} strokeWidth={3} />
+          </SharedMap>
 
           <View style={S.etaOverlay}>
-            <Text style={{ fontSize: 14 }}>{'\u{1F4CD}'}</Text>
+            <MaterialIcons name={ICONS.location} size={fontSize.sm} color={colors.text} />
             <Text style={S.etaText}>{distToCustomer != null ? fmtDist(distToCustomer) : '—'} &middot; {etaToCustomer != null ? fmtETA(etaToCustomer) : '—'}</Text>
           </View>
         </View>
 
         {/* CONTENT */}
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.md, paddingBottom: 120 }}>
           {/* Timeline */}
           <View style={S.timelineCard}>
             <View style={S.timelineRow}>
@@ -268,16 +274,16 @@ export default function EnRouteScreen() {
               {badge && <View style={[S.badge, { backgroundColor: badge.bg }]}><Text style={[S.badgeText, { color: badge.text }]}>{badge.label}</Text></View>}
             </View>
             <View style={S.locRow}>
-              <Text style={{ fontSize: 16, color: theme.green }}>{'\u{1F3EA}'}</Text>
-              <View style={{ flex: 1, marginLeft: 10 }}>
+              <MaterialIcons name={ICONS.store} size={fontSize.md} color={colors.primary} />
+              <View style={{ flex: 1, marginLeft: spacing.sm }}>
                 <Text style={S.locLabel}>PICKUP</Text>
                 <Text style={S.locTitle}>{store?.name || 'Store'}</Text>
                 <Text style={S.locAddr}>{order.pickup_address}</Text>
               </View>
             </View>
             <View style={[S.locRow, { marginBottom: 0 }]}>
-              <View style={S.dropPinSmall}><Text style={{ fontSize: 10, color: theme.white }}>{'\u{1F4CD}'}</Text></View>
-              <View style={{ flex: 1, marginLeft: 10 }}>
+              <View style={S.dropPinSmall}><MaterialIcons name={ICONS.location} size={fontSize.xxs} color={colors.text} /></View>
+              <View style={{ flex: 1, marginLeft: spacing.sm }}>
                 <Text style={S.locLabel}>DROP-OFF</Text>
                 <Text style={S.locTitle}>{order.delivery_address}</Text>
               </View>
@@ -305,7 +311,7 @@ export default function EnRouteScreen() {
               </View>
               <View style={S.infoItem}>
                 <Text style={S.infoLabel}>Earnings</Text>
-                <Text style={[S.infoValue, { color: theme.green }]}>{fmtCurr(total)}</Text>
+                <Text style={[S.infoValue, { color: colors.primary }]}>{fmtCurr(total)}</Text>
               </View>
             </View>
           </View>
@@ -319,15 +325,15 @@ export default function EnRouteScreen() {
         {/* BOTTOM ACTIONS - 3 buttons */}
         <View style={S.bottomBar}>
           <TouchableOpacity style={S.bottomBtn} onPress={startNavigation}>
-            <Text style={{ fontSize: 16, color: theme.green }}>{'\u{1F5FA}'}</Text>
+            <MaterialIcons name={ICONS.map} size={fontSize.md} color={colors.primary} />
             <Text style={S.bottomBtnText}>Navigate</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[S.bottomBtn, S.bottomBtnChat]} onPress={openChat}>
-            <Text style={{ fontSize: 16, color: theme.green }}>{'\u{1F4AC}'}</Text>
+            <MaterialIcons name={ICONS.chat} size={fontSize.md} color={colors.primary} />
             <Text style={S.bottomBtnText}>Chat</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[S.bottomBtn, S.bottomBtnCall]} onPress={callCustomer}>
-            <Text style={{ fontSize: 16, color: theme.green }}>{'\u{1F4DE}'}</Text>
+            <MaterialIcons name={ICONS.phone} size={fontSize.md} color={colors.primary} />
             <Text style={S.bottomBtnText}>Call</Text>
           </TouchableOpacity>
         </View>
@@ -336,63 +342,63 @@ export default function EnRouteScreen() {
   );
 }
 
-const S = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useColors>, spacing: any, fontSize: any, borderRadius: any, fontWeight: any) => StyleSheet.create({
   mapContainer: { height: 280, position: 'relative' },
   map: { width: '100%', height: '100%' },
   etaOverlay: {
-    position: 'absolute', top: 12, right: 12, flexDirection: 'row', alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.75)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, gap: 6,
+    position: 'absolute', top: spacing.sm, right: spacing.sm, flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.75)', paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.md, gap: spacing.xs,
   },
-  etaText: { color: theme.white, fontSize: 13, fontWeight: '600' },
+  etaText: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
   card: {
-    backgroundColor: theme.card, borderRadius: theme.radius.lg, padding: 16, marginBottom: 12,
-    borderWidth: 1, borderColor: theme.border,
+    backgroundColor: colors.surface, borderRadius: borderRadius.lg, padding: spacing.md, marginBottom: spacing.sm,
+    borderWidth: 1, borderColor: colors.border,
   },
-  cardTitle: { color: theme.white, fontSize: 16, fontWeight: '700', marginBottom: 14 },
+  cardTitle: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold, marginBottom: spacing.sm },
   timelineCard: {
-    backgroundColor: theme.card, borderRadius: theme.radius.lg, padding: 16, marginBottom: 12,
-    borderWidth: 1, borderColor: theme.border,
+    backgroundColor: colors.surface, borderRadius: borderRadius.lg, padding: spacing.md, marginBottom: spacing.sm,
+    borderWidth: 1, borderColor: colors.border,
   },
   timelineRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   stepItem: { flex: 1, alignItems: 'center' },
-  stepDot: { width: 14, height: 14, borderRadius: 7, backgroundColor: theme.pendingDot, marginBottom: 6 },
-  stepDotCompleted: { backgroundColor: theme.greenLight },
-  stepDotActive: { backgroundColor: theme.green, width: 18, height: 18, borderRadius: 9, marginTop: -2 },
-  stepLine: { position: 'absolute', top: 6, left: '50%', right: '-50%', height: 3, backgroundColor: theme.pendingDot, zIndex: -1 },
-  stepLineCompleted: { backgroundColor: theme.greenLight },
-  stepLabel: { fontSize: 9, color: theme.label, textAlign: 'center', fontWeight: '500' },
-  stepLabelCompleted: { color: theme.greenLight },
-  stepLabelActive: { color: theme.white, fontWeight: '700' },
-  orderHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  orderId: { color: theme.white, fontSize: 16, fontWeight: '700' },
-  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
-  badgeText: { fontSize: 12, fontWeight: '700' },
-  locRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 },
-  locLabel: { color: theme.gray, fontSize: 11, fontWeight: '600', letterSpacing: 0.5, marginBottom: 2 },
-  locTitle: { color: theme.white, fontSize: 14, fontWeight: '700', marginBottom: 2 },
-  locAddr: { color: theme.gray, fontSize: 12 },
-  dropPinSmall: { width: 22, height: 22, borderRadius: 11, backgroundColor: theme.redDark, justifyContent: 'center', alignItems: 'center', marginTop: 1 },
-  divider: { height: 1, backgroundColor: theme.border, marginVertical: 12 },
+  stepDot: { width: 14, height: 14, borderRadius: 7, backgroundColor: colors.border, marginBottom: 6 },
+  stepDotCompleted: { backgroundColor: colors.primary },
+  stepDotActive: { backgroundColor: colors.primary, width: 18, height: 18, borderRadius: 9, marginTop: -2 },
+  stepLine: { position: 'absolute', top: 6, left: '50%', right: '-50%', height: 3, backgroundColor: colors.border, zIndex: -1 },
+  stepLineCompleted: { backgroundColor: colors.primary },
+  stepLabel: { fontSize: fontSize.xxs, color: colors.textSecondary, textAlign: 'center', fontWeight: fontWeight.medium },
+  stepLabelCompleted: { color: colors.primary },
+  stepLabelActive: { color: colors.text, fontWeight: fontWeight.bold },
+  orderHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
+  orderId: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  badge: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm },
+  badgeText: { fontSize: fontSize.xs, fontWeight: fontWeight.bold },
+  locRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: spacing.sm },
+  locLabel: { color: colors.textSecondary, fontSize: fontSize.xxs, fontWeight: fontWeight.semibold, letterSpacing: 0.5, marginBottom: spacing.xs },
+  locTitle: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.bold, marginBottom: spacing.xs },
+  locAddr: { color: colors.textSecondary, fontSize: fontSize.xs },
+  dropPinSmall: { width: 22, height: 22, borderRadius: 11, backgroundColor: colors.dangerLight, justifyContent: 'center', alignItems: 'center', marginTop: 1 },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.sm },
   custRow: { flexDirection: 'row', alignItems: 'center' },
-  custName: { color: theme.white, fontSize: 16, fontWeight: '700', marginBottom: 4 },
-  custPhone: { color: theme.gray, fontSize: 14 },
+  custName: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold, marginBottom: spacing.xs },
+  custPhone: { color: colors.textSecondary, fontSize: fontSize.sm },
   infoGrid: { flexDirection: 'row', justifyContent: 'space-between' },
   infoItem: { alignItems: 'center', flex: 1 },
-  infoLabel: { color: theme.gray, fontSize: 12, marginBottom: 4 },
-  infoValue: { color: theme.white, fontSize: 15, fontWeight: '700' },
-  arriveBtn: { backgroundColor: theme.greenDark, borderRadius: theme.radius.lg, paddingVertical: 14, alignItems: 'center', marginBottom: 12 },
-  arriveBtnText: { color: theme.greenLight, fontSize: 16, fontWeight: '700' },
+  infoLabel: { color: colors.textSecondary, fontSize: fontSize.xs, marginBottom: spacing.xs },
+  infoValue: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+  arriveBtn: { backgroundColor: colors.primaryLight, borderRadius: borderRadius.lg, paddingVertical: spacing.sm, alignItems: 'center', marginBottom: spacing.sm },
+  arriveBtnText: { color: colors.primary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
   bottomBar: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', gap: 8,
-    padding: 12, paddingBottom: 24, backgroundColor: theme.bg, borderTopWidth: 1, borderTopColor: theme.border,
+    position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', gap: spacing.sm,
+    padding: spacing.sm, paddingBottom: spacing.lg, backgroundColor: colors.background, borderTopWidth: 1, borderTopColor: colors.border,
   },
   bottomBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: theme.greenDark, borderRadius: theme.radius.md, paddingVertical: 12, gap: 6,
+    backgroundColor: colors.primaryLight, borderRadius: borderRadius.md, paddingVertical: spacing.sm, gap: 6,
   },
-  bottomBtnChat: { backgroundColor: theme.statusAccepted },
-  bottomBtnCall: { backgroundColor: theme.callBg },
-  bottomBtnText: { color: theme.greenLight, fontSize: 13, fontWeight: '700' },
-  backBtn: { backgroundColor: theme.greenDark, borderRadius: theme.radius.lg, paddingVertical: 12, paddingHorizontal: 32 },
-  backBtnText: { color: theme.greenLight, fontSize: 16, fontWeight: '700' },
+  bottomBtnChat: { backgroundColor: colors.primaryLight },
+  bottomBtnCall: { backgroundColor: colors.primaryLight },
+  bottomBtnText: { color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+  backBtn: { backgroundColor: colors.primaryLight, borderRadius: borderRadius.lg, paddingVertical: spacing.sm, paddingHorizontal: spacing.xl },
+  backBtnText: { color: colors.primary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
 });

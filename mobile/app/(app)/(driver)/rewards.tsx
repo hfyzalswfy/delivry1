@@ -1,9 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, SafeAreaView } from 'react-native';
 import { Stack } from 'expo-router';
+import { MaterialIcons } from '@expo/vector-icons';
 import { supabase } from '../../../src/lib/supabase';
 import { useAuthStore } from '../../../src/store/auth-store';
-import { theme } from '../../../src/theme/driver-theme';
+import { useColors } from '../../../src/theme/ThemeProvider';
+import { spacing, fontSize, borderRadius, fontWeight } from '../../../src/theme/index';
+import { ICONS } from '../../../src/constants/icons';
 
 interface BonusPeriod {
   label: string;
@@ -12,13 +15,13 @@ interface BonusPeriod {
   icon: string;
 }
 
-const ACHIEVEMENTS = [
-  { icon: '\u{1F3C6}', label: 'First Delivery', desc: 'Complete your first delivery', max: 1 },
-  { icon: '\u{1F4AF}', label: '5 Star Service', desc: 'Maintain 5.0 rating for 10 deliveries', max: 10 },
-  { icon: '\u{26A1}', label: 'Speed Demon', desc: 'Complete 5 deliveries in one day', max: 5 },
-  { icon: '\u{1F3C1}', label: 'Weekend Warrior', desc: 'Complete 20 deliveries in a week', max: 20 },
-  { icon: '\u{1F31F}', label: 'Top Rated', desc: 'Reach 50 total deliveries', max: 50 },
-  { icon: '\u{1F4B0}', label: 'Money Maker', desc: 'Earn 10,000 YER total', max: 10000 },
+const ACHIEVEMENTS: Array<{ icon: string; label: string; desc: string; max: number }> = [
+  { icon: ICONS.stars, label: 'First Delivery', desc: 'Complete your first delivery', max: 1 },
+  { icon: ICONS.favorite, label: '5 Star Service', desc: 'Maintain 5.0 rating for 10 deliveries', max: 10 },
+  { icon: ICONS.bolt, label: 'Speed Demon', desc: 'Complete 5 deliveries in one day', max: 5 },
+  { icon: ICONS.flag, label: 'Weekend Warrior', desc: 'Complete 20 deliveries in a week', max: 20 },
+  { icon: ICONS.stars, label: 'Top Rated', desc: 'Reach 50 total deliveries', max: 50 },
+  { icon: ICONS.money, label: 'Money Maker', desc: 'Earn 10,000 YER total', max: 10000 },
 ];
 
 function fmtCurr(v: number): string {
@@ -26,6 +29,7 @@ function fmtCurr(v: number): string {
 }
 
 export default function RewardsScreen() {
+  const colors = useColors();
   const profile = useAuthStore((s) => s.profile);
   const [loading, setLoading] = useState(true);
   const [totalEarnings, setTotalEarnings] = useState(0);
@@ -34,6 +38,7 @@ export default function RewardsScreen() {
   const [rating, setRating] = useState(0);
   const [weeklyDeliveries, setWeeklyDeliveries] = useState(0);
   const cancelledRef = useRef(false);
+  const S = useMemo(() => createStyles(colors, spacing, fontSize, borderRadius, fontWeight), [colors]);
 
   useEffect(() => {
     if (!profile) return;
@@ -73,9 +78,9 @@ export default function RewardsScreen() {
       const allBonus = allBonusRows.reduce((s, r) => s + (r.reward_bonus ?? 0), 0);
 
       setWeeklyBonuses([
-        { label: 'This Week', bonus: wkBonus, count: wkBonusRows.length, icon: '\u{1F4C5}' },
-        { label: 'This Month', bonus: moBonus, count: moBonusRows.length, icon: '\u{1F4C6}' },
-        { label: 'All Time', bonus: allBonus, count: allBonusRows.length, icon: '\u{1F3C6}' },
+        { label: 'This Week', bonus: wkBonus, count: wkBonusRows.length, icon: ICONS.calendar },
+        { label: 'This Month', bonus: moBonus, count: moBonusRows.length, icon: ICONS.calendar },
+        { label: 'All Time', bonus: allBonus, count: allBonusRows.length, icon: ICONS.stars },
       ]);
 
       if (!cancelledRef.current) setLoading(false);
@@ -86,23 +91,23 @@ export default function RewardsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
-        <Stack.Screen options={{ title: 'Rewards', headerTitleStyle: { fontWeight: '600', color: theme.white } }} />
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <Stack.Screen options={{ title: 'Rewards', headerTitleStyle: { fontWeight: fontWeight.semibold, color: colors.text } }} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color={theme.green} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
-      <Stack.Screen options={{ title: 'Rewards', headerTitleStyle: { fontWeight: '600', color: theme.white } }} />
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <Stack.Screen options={{ title: 'Rewards', headerTitleStyle: { fontWeight: '600', color: colors.text } }} />
 
       <FlatList
         data={ACHIEVEMENTS}
         keyExtractor={(item) => item.label}
-        contentContainerStyle={{ paddingBottom: 24 }}
+        contentContainerStyle={{ paddingBottom: spacing.lg }}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <>
@@ -133,8 +138,8 @@ export default function RewardsScreen() {
             {weeklyBonuses.map((p) => (
               <View key={p.label} style={S.bonusCard}>
                 <View style={S.bonusLeft}>
-                  <Text style={{ fontSize: 24 }}>{p.icon}</Text>
-                  <View style={{ marginLeft: 12 }}>
+                  <MaterialIcons name={p.icon as any} size={fontSize.xxl} color={colors.text} />
+                  <View style={{ marginLeft: spacing.md }}>
                     <Text style={S.bonusLabel}>{p.label}</Text>
                     <Text style={S.bonusCount}>{p.count} bonuses earned</Text>
                   </View>
@@ -157,8 +162,8 @@ export default function RewardsScreen() {
           const unlocked = progress >= 1;
           return (
             <View style={[S.achieveCard, unlocked && S.achieveCardUnlocked]}>
-              <Text style={{ fontSize: 28, opacity: unlocked ? 1 : 0.4 }}>{item.icon}</Text>
-              <View style={{ flex: 1, marginLeft: 14, marginRight: 12 }}>
+              <MaterialIcons name={item.icon as any} size={fontSize.xxxl} color={colors.text} style={{ opacity: unlocked ? 1 : 0.4 }} />
+              <View style={{ flex: 1, marginLeft: spacing.md, marginRight: spacing.md }}>
                 <Text style={[S.achieveLabel, unlocked && S.achieveLabelUnlocked]}>{item.label}</Text>
                 <Text style={S.achieveDesc}>{item.desc}</Text>
                 {!unlocked && (
@@ -167,7 +172,7 @@ export default function RewardsScreen() {
                   </View>
                 )}
               </View>
-              {unlocked && <Text style={{ fontSize: 20 }}>{'\u{2705}'}</Text>}
+              {unlocked && <MaterialIcons name={ICONS.check} size={fontSize.xl} color={colors.primary} />}
             </View>
           );
         }}
@@ -176,28 +181,28 @@ export default function RewardsScreen() {
   );
 }
 
-const S = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useColors>, spacing: any, fontSize: any, borderRadius: any, fontWeight: any) => StyleSheet.create({
   summaryCard: {
-    backgroundColor: theme.card,
-    borderRadius: theme.radius.lg,
-    marginHorizontal: 16,
-    marginTop: 16,
-    padding: theme.spacing.xl,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.md,
+    padding: spacing.xl,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: colors.border,
     alignItems: 'center',
   },
   summaryValue: {
-    fontSize: theme.fontSize.hero,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.green,
-    marginBottom: 4,
+    fontSize: fontSize.hero,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
+    marginBottom: spacing.xs,
   },
   summaryLabel: {
-    fontSize: theme.fontSize.md,
-    color: theme.gray,
-    fontWeight: theme.fontWeight.medium,
-    marginBottom: 20,
+    fontSize: fontSize.md,
+    color: colors.textSecondary,
+    fontWeight: fontWeight.medium,
+    marginBottom: spacing.lg - spacing.xs,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -209,39 +214,39 @@ const S = StyleSheet.create({
     alignItems: 'center',
   },
   summaryItemValue: {
-    fontSize: theme.fontSize.xxl,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.white,
+    fontSize: fontSize.xxl,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
     marginBottom: 2,
   },
   summaryItemLabel: {
-    fontSize: theme.fontSize.xs,
-    color: theme.gray,
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
   },
   summaryDivider: {
     width: 1,
     height: 32,
-    backgroundColor: theme.border,
+    backgroundColor: colors.border,
   },
   sectionTitle: {
-    fontSize: theme.fontSize.xl,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.white,
-    marginHorizontal: 16,
-    marginTop: 24,
-    marginBottom: 12,
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm + spacing.xs,
   },
   bonusCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: theme.card,
-    marginHorizontal: 16,
-    marginBottom: 8,
-    padding: theme.spacing.lg,
-    borderRadius: theme.radius.lg,
+    backgroundColor: colors.surface,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: colors.border,
   },
   bonusLeft: {
     flexDirection: 'row',
@@ -249,59 +254,59 @@ const S = StyleSheet.create({
     flex: 1,
   },
   bonusLabel: {
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.white,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.text,
   },
   bonusCount: {
-    fontSize: theme.fontSize.sm,
-    color: theme.gray,
-    marginTop: 2,
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
   },
   bonusValue: {
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.green,
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
   },
   achieveCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.card,
-    marginHorizontal: 16,
-    marginBottom: 8,
-    padding: theme.spacing.lg,
-    borderRadius: theme.radius.lg,
+    backgroundColor: colors.surface,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: colors.border,
     opacity: 0.7,
   },
   achieveCardUnlocked: {
     opacity: 1,
-    borderColor: theme.greenDark,
+    borderColor: colors.primaryLight,
   },
   achieveLabel: {
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.gray,
-    marginBottom: 2,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
   },
   achieveLabelUnlocked: {
-    color: theme.greenLight,
+    color: colors.primary,
   },
   achieveDesc: {
-    fontSize: theme.fontSize.sm,
-    color: theme.dim,
-    marginBottom: 6,
+    fontSize: fontSize.sm,
+    color: colors.textTertiary,
+    marginBottom: spacing.xs + 2,
   },
   achieveProgressBg: {
     height: 4,
-    backgroundColor: theme.border,
-    borderRadius: 2,
+    backgroundColor: colors.border,
+    borderRadius: borderRadius.sm,
     overflow: 'hidden',
   },
   achieveProgressFill: {
     height: 4,
-    backgroundColor: theme.green,
-    borderRadius: 2,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.sm,
   },
 });

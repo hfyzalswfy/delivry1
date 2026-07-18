@@ -1,14 +1,18 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Dimensions, SafeAreaView } from 'react-native';
 import { router } from 'expo-router';
-import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
+import { Marker } from 'react-native-maps';
+import SharedMap, { SharedMapRef } from '../../../src/components/ui/SharedMap';
 import * as Location from 'expo-location';
+import { MaterialIcons } from '@expo/vector-icons';
+import { ICONS } from '../../../src/constants/icons';
 import { supabase } from '../../../src/lib/supabase';
 import { useAuthStore } from '../../../src/store/auth-store';
-import { colors } from '../../../src/theme/colors';
-import { spacing, fontSize, borderRadius } from '../../../src/theme/spacing';
+import { useColors } from '../../../src/theme/ThemeProvider';
+import { spacing, fontSize, borderRadius, fontWeight, shadow } from '../../../src/theme/spacing';
 
 export default function CreateOrderScreen() {
+  const colors = useColors();
   const profile = useAuthStore((s) => s.profile);
   const [loading, setLoading] = useState(false);
   const [shipmentTypes, setShipmentTypes] = useState<{ id: string; name: string }[]>([]);
@@ -35,7 +39,7 @@ export default function CreateOrderScreen() {
     latitudeDelta: 0.05,
     longitudeDelta: 0.05,
   });
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<SharedMapRef>(null);
 
   useEffect(() => {
     supabase.from('shipment_types').select('id, name').eq('is_active', true).then(({ data }) => {
@@ -43,19 +47,36 @@ export default function CreateOrderScreen() {
     });
   }, []);
 
+  const reverseGeocodeWithFallback = async (latitude: number, longitude: number): Promise<string> => {
+    try {
+      const result = await Promise.race([
+        Location.reverseGeocodeAsync({ latitude, longitude }),
+        new Promise<null>((_, reject) => setTimeout(() => reject(new Error('Geocode timeout')), 10000)),
+      ]);
+      if (result && result[0]) {
+        const parts = [result[0].street, result[0].city, result[0].region].filter(Boolean);
+        return parts.join(', ');
+      }
+    } catch {
+      // geocode failed silently — return coordinates as fallback
+    }
+    return `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+  };
+
   const useCurrentLocation = async () => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') return;
-    const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-    const { latitude, longitude } = loc.coords;
-    setPickupLat(latitude.toFixed(6));
-    setPickupLng(longitude.toFixed(6));
-    setMapRegion({ latitude, longitude, latitudeDelta: 0.05, longitudeDelta: 0.05 });
-    mapRef.current?.animateToRegion({ latitude, longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 }, 500);
-    const addr = await Location.reverseGeocodeAsync({ latitude, longitude });
-    if (addr[0]) {
-      const parts = [addr[0].street, addr[0].city, addr[0].region].filter(Boolean);
-      setPickupAddress(parts.join(', '));
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') return;
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const { latitude, longitude } = loc.coords;
+      setPickupLat(latitude.toFixed(6));
+      setPickupLng(longitude.toFixed(6));
+      setMapRegion({ latitude, longitude, latitudeDelta: 0.05, longitudeDelta: 0.05 });
+      mapRef.current?.animateToRegion({ latitude, longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 }, 500);
+      const address = await reverseGeocodeWithFallback(latitude, longitude);
+      setPickupAddress(address);
+    } catch {
+      // location fetch failed — user can enter manually
     }
   };
 
@@ -63,11 +84,8 @@ export default function CreateOrderScreen() {
     const { latitude, longitude } = event.nativeEvent.coordinate;
     setDeliveryLat(latitude.toFixed(6));
     setDeliveryLng(longitude.toFixed(6));
-    const addr = await Location.reverseGeocodeAsync({ latitude, longitude });
-    if (addr[0]) {
-      const parts = [addr[0].street, addr[0].city, addr[0].region].filter(Boolean);
-      setDeliveryAddress(parts.join(', '));
-    }
+    const address = await reverseGeocodeWithFallback(latitude, longitude);
+    setDeliveryAddress(address);
   };
 
   const handleCreate = async () => {
@@ -129,16 +147,41 @@ export default function CreateOrderScreen() {
     router.back();
   };
 
+  const styles = useMemo(() => StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background, padding: spacing.md },
+    sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text, marginTop: spacing.lg, marginBottom: spacing.sm },
+    hint: { fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.sm },
+    mapContainer: { position: 'relative', borderRadius: borderRadius.md, overflow: 'hidden' },
+    map: { width: '100%', height: 280, borderRadius: borderRadius.md },
+    currentLocButton: { position: 'absolute', top: spacing.sm, right: spacing.sm, backgroundColor: colors.surface, paddingVertical: spacing.xs, paddingHorizontal: spacing.sm, borderRadius: borderRadius.full, borderWidth: 1, borderColor: colors.border, ...shadow.md },
+    currentLocText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.text },
+    toggleManual: { marginTop: spacing.md, paddingVertical: spacing.sm },
+    toggleManualText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.primary, textAlign: 'center' },
+    label: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.text, marginTop: spacing.sm, marginBottom: spacing.xs },
+    input: { borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.md, padding: spacing.md, fontSize: fontSize.md, backgroundColor: colors.surface },
+    textArea: { minHeight: 80, textAlignVertical: 'top' },
+    row: { flexDirection: 'row', gap: spacing.sm },
+    half: { flex: 1 },
+    shipmentRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    shipmentCard: { borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.md, padding: spacing.sm, alignItems: 'center', minWidth: 80, backgroundColor: colors.surface },
+    shipmentCardActive: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
+    shipmentName: { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: colors.text },
+    shipmentNameActive: { color: colors.primary, fontWeight: fontWeight.semibold },
+    error: { color: colors.danger, fontSize: fontSize.sm, marginTop: spacing.sm },
+    button: { backgroundColor: colors.primary, borderRadius: borderRadius.md, padding: spacing.md, alignItems: 'center', marginTop: spacing.lg },
+    buttonDisabled: { opacity: 0.6 },
+    buttonText: { color: colors.white, fontSize: fontSize.md, fontWeight: fontWeight.semibold },
+  }), [colors]);
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
       <Text style={styles.sectionTitle}>Pickup & Delivery Map</Text>
       <Text style={styles.hint}>Long press on the map to set delivery location</Text>
       <View style={styles.mapContainer}>
-        <MapView
+        <SharedMap
           ref={mapRef}
           style={styles.map}
-          provider={PROVIDER_DEFAULT}
           mapType="standard"
           loadingEnabled
           region={mapRegion}
@@ -150,9 +193,10 @@ export default function CreateOrderScreen() {
           {deliveryLat && deliveryLng && !isNaN(parseFloat(deliveryLat)) && (
             <Marker coordinate={{ latitude: parseFloat(deliveryLat), longitude: parseFloat(deliveryLng) }} title="Delivery" pinColor="red" />
           )}
-        </MapView>
+        </SharedMap>
         <TouchableOpacity style={styles.currentLocButton} onPress={useCurrentLocation}>
-          <Text style={styles.currentLocText}>📍 My Location</Text>
+          <MaterialIcons name={ICONS.location} size={fontSize.sm} color={colors.text} style={{ marginRight: spacing.xs }} />
+          <Text style={styles.currentLocText}>My Location</Text>
         </TouchableOpacity>
       </View>
 
@@ -233,28 +277,3 @@ export default function CreateOrderScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background, padding: spacing.md },
-  sectionTitle: { fontSize: fontSize.lg, fontWeight: '700', color: colors.text, marginTop: spacing.lg, marginBottom: spacing.sm },
-  hint: { fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.sm },
-  mapContainer: { position: 'relative', borderRadius: borderRadius.md, overflow: 'hidden' },
-  map: { width: '100%', height: 280, borderRadius: borderRadius.md },
-  currentLocButton: { position: 'absolute', top: spacing.sm, right: spacing.sm, backgroundColor: colors.surface, paddingVertical: spacing.xs, paddingHorizontal: spacing.sm, borderRadius: borderRadius.full, borderWidth: 1, borderColor: colors.border, elevation: 3, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
-  currentLocText: { fontSize: fontSize.sm, fontWeight: '600', color: colors.text },
-  toggleManual: { marginTop: spacing.md, paddingVertical: spacing.sm },
-  toggleManualText: { fontSize: fontSize.sm, fontWeight: '600', color: colors.primary, textAlign: 'center' },
-  label: { fontSize: fontSize.sm, fontWeight: '600', color: colors.text, marginTop: spacing.sm, marginBottom: spacing.xs },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.md, padding: spacing.md, fontSize: fontSize.md, backgroundColor: colors.surface },
-  textArea: { minHeight: 80, textAlignVertical: 'top' },
-  row: { flexDirection: 'row', gap: spacing.sm },
-  half: { flex: 1 },
-  shipmentRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  shipmentCard: { borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.md, padding: spacing.sm, alignItems: 'center', minWidth: 80, backgroundColor: colors.surface },
-  shipmentCardActive: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
-  shipmentName: { fontSize: fontSize.sm, fontWeight: '500', color: colors.text },
-  shipmentNameActive: { color: colors.primary, fontWeight: '600' },
-  error: { color: colors.danger, fontSize: fontSize.sm, marginTop: spacing.sm },
-  button: { backgroundColor: colors.primary, borderRadius: borderRadius.md, padding: spacing.md, alignItems: 'center', marginTop: spacing.lg },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: '#fff', fontSize: fontSize.md, fontWeight: '600' },
-});

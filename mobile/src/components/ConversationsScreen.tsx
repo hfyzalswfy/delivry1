@@ -3,13 +3,7 @@ import { Link } from 'expo-router';
 import { useConversations } from '../hooks/use-conversations';
 import { colors } from '../theme/colors';
 import { spacing, fontSize, borderRadius } from '../theme/spacing';
-
-const roleColors: Record<string, string> = {
-  customer: '#8B5CF6',
-  driver: '#10B981',
-  store: '#F59E0B',
-  admin: '#EF4444',
-};
+import { ROLE_COLORS } from '../constants';
 
 function formatRelativeTime(dateStr: string): string {
   const now = Date.now();
@@ -53,7 +47,7 @@ export default function ConversationsScreen() {
       renderItem={({ item }) => {
         const party = item.other_party;
         const role = party?.role ?? 'customer';
-        const roleColor = roleColors[role] ?? roleColors.customer;
+        const roleColor = ROLE_COLORS[role] ?? ROLE_COLORS.customer;
         const firstChar = party?.full_name?.charAt(0).toUpperCase() ?? '?';
 
         return (

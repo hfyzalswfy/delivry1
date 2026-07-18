@@ -1,44 +1,31 @@
-import { Tabs, router } from 'expo-router';
-import { Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Tabs } from 'expo-router';
+import { StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { useTheme } from '../../../src/theme/ThemeProvider';
-
-function TabIcon({ icon, color }: { icon: string; color: string }) {
-  return <Text style={{ fontSize: 20, color }}>{icon}</Text>;
-}
-
-function BackButton({ color }: { color: string }) {
-  return (
-    <TouchableOpacity onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/(app)/(driver)'); }} style={styles.backBtn}>
-      <Text style={{ fontSize: 22, fontWeight: '600', color }}>{'\u2190'}</Text>
-    </TouchableOpacity>
-  );
-}
-
-const BACK_HEADER = (theme: ReturnType<typeof useTheme>) => ({
-  headerLeft: () => <BackButton color={theme.white} />,
-});
+import { useColors } from '../../../src/theme/ThemeProvider';
+import { spacing } from '../../../src/theme/spacing';
+import { TabIcon } from '../../../src/components/ui/TabIcon';
+import { BackButton } from '../../../src/components/BackButton';
 
 export default function DriverLayout() {
   const { t } = useTranslation();
-  const theme = useTheme();
+  const colors = useColors();
 
   const nonTabScreenOptions = (title: string) => ({
     href: null as any,
     title,
-    ...BACK_HEADER(theme),
+    headerLeft: () => <BackButton fallbackRoute="/(app)/(driver)" />,
   });
 
   return (
     <Tabs
       screenOptions={{
-        headerStyle: { backgroundColor: theme.surface },
-        headerTintColor: theme.white,
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.text,
         headerTitleStyle: { fontWeight: '600' as const },
         headerShadowVisible: false,
-        tabBarStyle: { backgroundColor: theme.tabBg, borderTopColor: theme.tabBorder, borderTopWidth: 1, height: 60, paddingBottom: 8, paddingTop: 6 },
-        tabBarActiveTintColor: theme.green,
-        tabBarInactiveTintColor: theme.gray,
+        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border, borderTopWidth: 1, height: 60, paddingBottom: spacing.sm, paddingTop: spacing.xs + 2 },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textTertiary,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '500' as const },
       }}
     >
@@ -47,35 +34,35 @@ export default function DriverLayout() {
         options={{
           title: t('tab.home'),
           headerShown: false,
-          tabBarIcon: () => <TabIcon icon="🏠" color={theme.gray} />,
+          tabBarIcon: ({ focused }) => <TabIcon icon="home" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="orders"
         options={{
           title: t('tab.orders'),
-          tabBarIcon: () => <TabIcon icon="🚚" color={theme.gray} />,
+          tabBarIcon: ({ focused }) => <TabIcon icon="orders" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="conversations"
         options={{
           title: t('tab.chat'),
-          tabBarIcon: () => <TabIcon icon="💬" color={theme.gray} />,
+          tabBarIcon: ({ focused }) => <TabIcon icon="chat" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="wallet"
         options={{
           title: t('tab.wallet'),
-          tabBarIcon: () => <TabIcon icon="👛" color={theme.gray} />,
+          tabBarIcon: ({ focused }) => <TabIcon icon="wallet" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: t('tab.profile'),
-          tabBarIcon: () => <TabIcon icon="👤" color={theme.gray} />,
+          tabBarIcon: ({ focused }) => <TabIcon icon="profile" focused={focused} />,
         }}
       />
       <Tabs.Screen name="[orderId]" options={nonTabScreenOptions(t('orderDetail.title'))} />
@@ -98,7 +85,3 @@ export default function DriverLayout() {
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  backBtn: { paddingLeft: 8, paddingRight: 16, paddingVertical: 4 },
-});

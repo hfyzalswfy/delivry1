@@ -1,39 +1,23 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, SafeAreaView, Alert, Image } from 'react-native';
 import { useLocalSearchParams, router, Stack } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { MaterialIcons } from '@expo/vector-icons';
 import { supabase } from '../../../src/lib/supabase';
 import { useAuthStore } from '../../../src/store/auth-store';
 import { completeDelivery } from '../../../src/services/delivery-service';
 import { DeliveryOrders, Stores } from '../../../src/types/database';
-
-const C = {
-  screenBg: '#0E1212',
-  cardBg: '#1A1D28',
-  white: '#FFFFFF',
-  nearWhite: '#F3F4F6',
-  label: '#6B7280',
-  green: '#22C55E',
-  greenDark: '#064E3B',
-  greenLight: '#4ADE80',
-  redDark: '#7F1D1D',
-  border: '#2A2D3A',
-  divider: '#2A2D3A',
-  callBg: '#064E3B',
-  badgeGray: '#2A2D3A',
-  pendingDot: '#3A3A3A',
-  cardRadius: 12,
-  inputBg: '#0E1212',
-  otpInputBg: '#0E1212',
-  warningBg: '#78350F',
-  warningText: '#FBBF24',
-};
+import { useColors } from '../../../src/theme/ThemeProvider';
+import { spacing, fontSize, borderRadius, fontWeight } from '../../../src/theme/spacing';
+import { ICONS } from '../../../src/constants/icons';
 
 function fmtCurr(v: number): string {
   return `${v.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} YER`;
 }
 
 export default function ConfirmDeliveryScreen() {
+  const colors = useColors();
+
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
   const profile = useAuthStore((s) => s.profile);
   const navigatedRef = useRef(false);
@@ -157,22 +141,73 @@ export default function ConfirmDeliveryScreen() {
     router.push(`/(app)/(driver)/report-issue?orderId=${orderId}`);
   };
 
+  const S = useMemo(() => StyleSheet.create({
+    card: {
+      backgroundColor: colors.surface, borderRadius: borderRadius.lg, padding: spacing.md, marginBottom: spacing.sm,
+      borderWidth: 1, borderColor: colors.border,
+    },
+    cardTitle: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold, marginBottom: spacing.sm },
+    cardNumber: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+    orderNumber: { color: colors.text, fontSize: fontSize.lg, fontWeight: fontWeight.bold, marginBottom: spacing.md },
+    locRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: spacing.sm },
+    locLabel: { color: colors.textSecondary, fontSize: fontSize.xxs, fontWeight: fontWeight.semibold, letterSpacing: 0.5, marginBottom: spacing.xs },
+    locTitle: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+    dropPinSmall: { width: 22, height: 22, borderRadius: 11, backgroundColor: colors.dangerLight, justifyContent: 'center', alignItems: 'center', marginTop: 1 },
+    payRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
+    lbl: { color: colors.textSecondary, fontSize: fontSize.sm },
+    val: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+    divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.sm },
+    totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    totalLbl: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+    totalVal: { color: colors.primary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+    verifLabel: { color: colors.textSecondary, fontSize: fontSize.sm, marginBottom: spacing.md },
+    otpSection: { marginBottom: spacing.md },
+    otpLabel: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm },
+    otpInput: {
+      backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.md,
+      padding: spacing.sm, fontSize: fontSize.xxl, color: colors.text, textAlign: 'center', letterSpacing: 8,
+      fontWeight: fontWeight.bold,
+    },
+    photoBtn: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+      backgroundColor: colors.background, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: colors.border,
+      borderStyle: 'dashed', paddingVertical: spacing.lg, gap: spacing.sm,
+    },
+    photoBtnText: { color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: fontWeight.medium },
+    signatureBox: {
+      alignItems: 'center', justifyContent: 'center',
+      backgroundColor: colors.background, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: colors.border,
+      borderStyle: 'dashed', paddingVertical: spacing.lg, gap: spacing.sm,
+    },
+    signatureLabel: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+    signatureNote: { color: colors.textSecondary, fontSize: fontSize.xs },
+    completeBtn: { backgroundColor: colors.primaryLight, borderRadius: borderRadius.lg, paddingVertical: spacing.sm, alignItems: 'center', marginTop: spacing.sm },
+    completeBtnText: { color: colors.primary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+    reportBtn: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+      paddingVertical: spacing.sm, marginTop: spacing.sm, gap: spacing.sm,
+    },
+    reportBtnText: { color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+    backBtn: { backgroundColor: colors.primaryLight, borderRadius: borderRadius.lg, paddingVertical: spacing.sm, paddingHorizontal: spacing.xl },
+    backBtnText: { color: colors.primary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  }), [colors]);
+
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.screenBg }}>
-        <Stack.Screen options={{ title: 'Confirm Delivery', headerTitleStyle: { fontWeight: '700', color: '#fff' } }} />
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color={C.green} /></View>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <Stack.Screen options={{ title: 'Confirm Delivery', headerTitleStyle: { fontWeight: fontWeight.bold } }} />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color={colors.primary} /></View>
       </SafeAreaView>
     );
   }
 
   if (accessError) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.screenBg }}>
-        <Stack.Screen options={{ title: 'Confirm Delivery', headerTitleStyle: { fontWeight: '700', color: '#fff' } }} />
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 }}>
-          <Text style={{ fontSize: 20, marginBottom: 12 }}>{'\u{26A0}\u{FE0F}'}</Text>
-          <Text style={{ color: C.nearWhite, fontSize: 16, textAlign: 'center', marginBottom: 24 }}>{accessError}</Text>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <Stack.Screen options={{ title: 'Confirm Delivery', headerTitleStyle: { fontWeight: fontWeight.bold } }} />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.lg }}>
+          <MaterialIcons name={ICONS.warning} size={fontSize.xl} color={colors.warning} />
+          <Text style={{ color: colors.text, fontSize: fontSize.md, textAlign: 'center', marginBottom: spacing.lg }}>{accessError}</Text>
           <TouchableOpacity style={S.backBtn} onPress={() => router.back()}>
             <Text style={S.backBtnText}>Go Back</Text>
           </TouchableOpacity>
@@ -183,31 +218,31 @@ export default function ConfirmDeliveryScreen() {
 
   if (!order) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.screenBg }}>
-        <Stack.Screen options={{ title: 'Confirm Delivery', headerTitleStyle: { fontWeight: '700', color: '#fff' } }} />
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text style={{ color: C.label, fontSize: 16 }}>Order not found</Text></View>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <Stack.Screen options={{ title: 'Confirm Delivery', headerTitleStyle: { fontWeight: fontWeight.bold } }} />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text style={{ color: colors.textSecondary, fontSize: fontSize.md }}>Order not found</Text></View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.screenBg }}>
-      <Stack.Screen options={{ title: 'Confirm Delivery', headerTitleStyle: { fontWeight: '700', color: '#fff' } }} />
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <Stack.Screen options={{ title: 'Confirm Delivery', headerTitleStyle: { fontWeight: fontWeight.bold } }} />
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+      <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: spacing.xl }}>
         {/* Order Info */}
         <View style={S.card}>
           <Text style={S.orderNumber}>{order.order_number}</Text>
           <View style={S.locRow}>
-            <Text style={{ fontSize: 16, color: C.green }}>{'\u{1F3EA}'}</Text>
-            <View style={{ flex: 1, marginLeft: 10 }}>
+            <MaterialIcons name={ICONS.store} size={fontSize.md} color={colors.primary} />
+            <View style={{ flex: 1, marginLeft: spacing.sm }}>
               <Text style={S.locLabel}>PICKUP</Text>
               <Text style={S.locTitle}>{store?.name || 'Store'}</Text>
             </View>
           </View>
           <View style={[S.locRow, { marginBottom: 0 }]}>
-            <View style={S.dropPinSmall}><Text style={{ fontSize: 10, color: C.white }}>{'\u{1F4CD}'}</Text></View>
-            <View style={{ flex: 1, marginLeft: 10 }}>
+            <View style={S.dropPinSmall}><MaterialIcons name={ICONS.location} size={fontSize.xxs} color={colors.text} /></View>
+            <View style={{ flex: 1, marginLeft: spacing.sm }}>
               <Text style={S.locLabel}>DROP-OFF</Text>
               <Text style={S.locTitle}>{order.delivery_address}</Text>
             </View>
@@ -248,7 +283,7 @@ export default function ConfirmDeliveryScreen() {
                 value={otpValue}
                 onChangeText={setOtpValue}
                 placeholder="000000"
-                placeholderTextColor={C.label}
+                placeholderTextColor={colors.textSecondary}
                 keyboardType="number-pad"
                 maxLength={6}
               />
@@ -259,10 +294,10 @@ export default function ConfirmDeliveryScreen() {
           {!hasOtp && !order.proof_signature_url && (
             <>
               {photoUri ? (
-                <View style={{ alignItems: 'center', marginBottom: 16 }}>
-                  <Image source={{ uri: photoUri }} style={{ width: '100%', height: 180, borderRadius: 10, marginBottom: 8 }} />
+                <View style={{ alignItems: 'center', marginBottom: spacing.md }}>
+                  <Image source={{ uri: photoUri }} style={{ width: '100%', height: 180, borderRadius: borderRadius.md, marginBottom: spacing.sm }} />
                   <TouchableOpacity onPress={() => setPhotoUri(null)}>
-                    <Text style={{ color: C.label, fontSize: 14, fontWeight: '500' }}>Remove Photo</Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: fontWeight.medium }}>Remove Photo</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
@@ -272,7 +307,7 @@ export default function ConfirmDeliveryScreen() {
                   const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8, allowsEditing: true });
                   if (!result.canceled && result.assets?.[0]?.uri) setPhotoUri(result.assets[0].uri);
                 }}>
-                  <Text style={{ fontSize: 24, color: C.label }}>{'\u{1F4F7}'}</Text>
+                  <MaterialIcons name={ICONS.camera} size={fontSize.xxl} color={colors.textSecondary} />
                   <Text style={S.photoBtnText}>Take Delivery Photo</Text>
                 </TouchableOpacity>
               )}
@@ -282,7 +317,7 @@ export default function ConfirmDeliveryScreen() {
           {/* Signature placeholder */}
           {!hasOtp && order.proof_signature_url && (
             <View style={S.signatureBox}>
-              <Text style={{ fontSize: 24, color: C.label }}>{'\u{270D}\u{FE0F}'}</Text>
+              <MaterialIcons name={ICONS.edit} size={fontSize.xxl} color={colors.textSecondary} />
               <Text style={S.signatureLabel}>Customer Signature</Text>
               <Text style={S.signatureNote}>Signature captured online</Text>
             </View>
@@ -295,61 +330,10 @@ export default function ConfirmDeliveryScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity style={S.reportBtn} onPress={handleReportIssue}>
-          <Text style={{ fontSize: 16, color: C.label }}>{'\u{26A0}\u{FE0F}'}</Text>
+          <MaterialIcons name={ICONS.warning} size={fontSize.md} color={colors.textSecondary} />
           <Text style={S.reportBtnText}>Report a Problem</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-const S = StyleSheet.create({
-  card: {
-    backgroundColor: C.cardBg, borderRadius: C.cardRadius, padding: 16, marginBottom: 12,
-    borderWidth: 1, borderColor: C.border,
-  },
-  cardTitle: { color: C.white, fontSize: 16, fontWeight: '700', marginBottom: 12 },
-  cardNumber: { color: C.white, fontSize: 14, fontWeight: '600' },
-  orderNumber: { color: C.white, fontSize: 18, fontWeight: '700', marginBottom: 16 },
-  locRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 },
-  locLabel: { color: C.label, fontSize: 11, fontWeight: '600', letterSpacing: 0.5, marginBottom: 2 },
-  locTitle: { color: C.white, fontSize: 14, fontWeight: '700' },
-  dropPinSmall: { width: 22, height: 22, borderRadius: 11, backgroundColor: C.redDark, justifyContent: 'center', alignItems: 'center', marginTop: 1 },
-  payRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  lbl: { color: C.label, fontSize: 14 },
-  val: { color: C.nearWhite, fontSize: 14, fontWeight: '600' },
-  divider: { height: 1, backgroundColor: C.divider, marginVertical: 10 },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  totalLbl: { color: C.white, fontSize: 15, fontWeight: '700' },
-  totalVal: { color: C.green, fontSize: 16, fontWeight: '700' },
-  verifLabel: { color: C.label, fontSize: 14, marginBottom: 16 },
-  otpSection: { marginBottom: 16 },
-  otpLabel: { color: C.nearWhite, fontSize: 14, fontWeight: '600', marginBottom: 8 },
-  otpInput: {
-    backgroundColor: C.inputBg, borderWidth: 1, borderColor: C.border, borderRadius: 10,
-    padding: 14, fontSize: 24, color: C.white, textAlign: 'center', letterSpacing: 8,
-    fontWeight: '700',
-  },
-  photoBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: C.inputBg, borderRadius: C.cardRadius, borderWidth: 1, borderColor: C.border,
-    borderStyle: 'dashed', paddingVertical: 24, gap: 8,
-  },
-  photoBtnText: { color: C.label, fontSize: 14, fontWeight: '500' },
-  signatureBox: {
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: C.inputBg, borderRadius: C.cardRadius, borderWidth: 1, borderColor: C.border,
-    borderStyle: 'dashed', paddingVertical: 24, gap: 8,
-  },
-  signatureLabel: { color: C.nearWhite, fontSize: 14, fontWeight: '600' },
-  signatureNote: { color: C.label, fontSize: 12 },
-  completeBtn: { backgroundColor: C.greenDark, borderRadius: C.cardRadius, paddingVertical: 14, alignItems: 'center', marginTop: 8 },
-  completeBtnText: { color: C.greenLight, fontSize: 16, fontWeight: '700' },
-  reportBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    paddingVertical: 14, marginTop: 12, gap: 8,
-  },
-  reportBtnText: { color: C.label, fontSize: 15, fontWeight: '600' },
-  backBtn: { backgroundColor: C.greenDark, borderRadius: C.cardRadius, paddingVertical: 12, paddingHorizontal: 32 },
-  backBtnText: { color: C.greenLight, fontSize: 16, fontWeight: '700' },
-});

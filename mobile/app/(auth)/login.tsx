@@ -1,9 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Link, router } from 'expo-router';
 import { useAuthStore } from '../../src/store/auth-store';
-import { colors } from '../../src/theme/colors';
-import { spacing, fontSize, borderRadius } from '../../src/theme/spacing';
+import { useColors } from '../../src/theme/ThemeProvider';
+import { spacing, fontSize, borderRadius, fontWeight } from '../../src/theme/spacing';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -13,6 +13,8 @@ export default function LoginScreen() {
   const signIn = useAuthStore((s) => s.signIn);
   const mountedRef = useRef(true);
   useEffect(() => () => { mountedRef.current = false; }, []);
+  const colors = useColors();
+  const styles = useStyles();
 
   const handleLogin = async () => {
     setError('');
@@ -71,17 +73,20 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function useStyles() {
+  const colors = useColors();
+  return useMemo(() => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background, justifyContent: 'center', padding: spacing.lg },
-  title: { fontSize: fontSize.xxl, fontWeight: '700', color: colors.text, textAlign: 'center' },
+  title: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.text, textAlign: 'center' },
   subtitle: { fontSize: fontSize.md, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm, marginBottom: spacing.xl },
   form: { gap: spacing.sm },
-  label: { fontSize: fontSize.sm, fontWeight: '600', color: colors.text },
+  label: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.text },
   input: { borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.md, padding: spacing.md, fontSize: fontSize.md, backgroundColor: colors.surface },
   error: { color: colors.danger, fontSize: fontSize.sm },
   button: { backgroundColor: colors.primary, borderRadius: borderRadius.md, padding: spacing.md, alignItems: 'center', marginTop: spacing.sm },
   buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: '#fff', fontSize: fontSize.md, fontWeight: '600' },
+  buttonText: { color: colors.white, fontSize: fontSize.md, fontWeight: fontWeight.semibold },
   link: { alignItems: 'center', marginTop: spacing.md },
   linkText: { color: colors.primary, fontSize: fontSize.sm },
-});
+}), [colors]);
+}

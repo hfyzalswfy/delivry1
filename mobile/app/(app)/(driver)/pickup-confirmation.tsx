@@ -2,39 +2,29 @@ import { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, SafeAreaView, TextInput, Image, Alert } from 'react-native';
 import { useLocalSearchParams, router, Stack } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { MaterialIcons } from '@expo/vector-icons';
 import { supabase } from '../../../src/lib/supabase';
 import { useAuthStore } from '../../../src/store/auth-store';
 import { arriveAtStore, confirmPickup } from '../../../src/services/delivery-service';
 import { DeliveryOrders, Stores } from '../../../src/types/database';
 import { calculateDistance } from '../../../src/lib/geo';
-
-const C = {
-  screenBg: '#0E1212',
-  cardBg: '#1A1D28',
-  white: '#FFFFFF',
-  nearWhite: '#F3F4F6',
-  label: '#6B7280',
-  green: '#22C55E',
-  greenDark: '#064E3B',
-  greenLight: '#4ADE80',
-  border: '#2A2D3A',
-  divider: '#2A2D3A',
-  cardRadius: 12,
-  disabledBg: '#2A2D3A',
-  disabledText: '#6B7280',
-};
-
-const BADGE: Record<string, { label: string; bg: string; text: string }> = {
-  driver_arrived_store: { label: 'At Store', bg: '#713F12', text: '#FBBF24' },
-  driver_accepted: { label: 'Accepted', bg: '#064E3B', text: '#4ADE80' },
-  picked_up: { label: 'Picked Up', bg: '#1E3A5F', text: '#60A5FA' },
-};
+import { useColors } from '../../../src/theme/ThemeProvider';
+import { spacing, fontSize, borderRadius, fontWeight } from '../../../src/theme/spacing';
+import { ICONS } from '../../../src/constants/icons';
 
 function fmtDist(km: number): string {
   return km < 1 ? `${(km * 1000).toFixed(0)} m` : `${km.toFixed(1)} km`;
 }
 
 export default function PickupConfirmationScreen() {
+  const colors = useColors();
+
+  const BADGE: Record<string, { label: string; bg: string; text: string }> = {
+    driver_arrived_store: { label: 'At Store', bg: colors.warningLight, text: colors.warning },
+    driver_accepted: { label: 'Accepted', bg: colors.primaryLight, text: colors.primary },
+    picked_up: { label: 'Picked Up', bg: colors.infoLight, text: colors.info },
+  };
+
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
   const profile = useAuthStore((s) => s.profile);
 
@@ -79,7 +69,7 @@ export default function PickupConfirmationScreen() {
     return calculateDistance(driverLat, driverLng, order.pickup_latitude, order.pickup_longitude);
   }, [order, driverLat, driverLng]);
 
-  const badge = order ? (BADGE[order.status] || { label: order.status.replace(/_/g, ' '), bg: C.disabledBg, text: C.label }) : null;
+  const badge = order ? (BADGE[order.status] || { label: order.status.replace(/_/g, ' '), bg: colors.borderLight, text: colors.textSecondary }) : null;
 
   const handleCancel = () => { if (router.canGoBack()) router.back(); else router.replace('/(app)/(driver)'); };
 
@@ -161,12 +151,140 @@ export default function PickupConfirmationScreen() {
     }
   };
 
+  const S = useMemo(() => StyleSheet.create({
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    cardTitle: {
+      color: colors.text,
+      fontSize: fontSize.md,
+      fontWeight: fontWeight.bold,
+      marginBottom: spacing.md,
+    },
+    row: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    lbl: { color: colors.textSecondary, fontSize: fontSize.sm, width: 64 },
+    val: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, textAlign: 'right' },
+    sml: { color: colors.textSecondary, fontSize: fontSize.xs, marginTop: spacing.xs, textAlign: 'right' },
+    badge: {
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      borderRadius: borderRadius.sm,
+    },
+    badgeText: { fontSize: fontSize.xs, fontWeight: fontWeight.bold },
+    divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.sm },
+    distRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    distText: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.medium },
+    proofBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.sm,
+      borderRadius: borderRadius.md,
+      backgroundColor: colors.borderLight,
+      marginBottom: spacing.sm,
+    },
+    proofBtnText: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.medium },
+    photoPreviewWrap: { alignItems: 'center', marginBottom: spacing.sm },
+    photoPreview: { width: '100%', height: 200, borderRadius: borderRadius.md, marginBottom: spacing.sm },
+    removePhotoBtn: { paddingVertical: 6 },
+    removePhotoText: { color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: fontWeight.medium },
+    sigPlaceholder: {
+      borderWidth: 1.5,
+      borderColor: colors.borderLight,
+      borderStyle: 'dashed',
+      borderRadius: borderRadius.md,
+      padding: spacing.xl,
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 100,
+    },
+    sigLine: {
+      width: '80%',
+      height: 1,
+      backgroundColor: colors.borderLight,
+      marginBottom: 6,
+    },
+    sigPlaceholderText: { color: colors.textSecondary, fontSize: fontSize.sm, marginTop: spacing.sm, fontWeight: fontWeight.medium },
+    notesInput: {
+      backgroundColor: colors.borderLight,
+      borderRadius: borderRadius.md,
+      padding: spacing.sm,
+      color: colors.text,
+      fontSize: fontSize.sm,
+      minHeight: 100,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    chkRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.xs,
+      marginBottom: spacing.md,
+    },
+    chkBox: {
+      width: 24,
+      height: 24,
+      borderRadius: borderRadius.sm,
+      borderWidth: 2,
+      borderColor: colors.textSecondary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: spacing.sm,
+    },
+    chkBoxChecked: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    chkMark: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+    chkLabel: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.medium, flex: 1 },
+    footer: {
+      padding: spacing.md,
+      paddingBottom: spacing.lg,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      backgroundColor: colors.background,
+    },
+    confirmBtn: {
+      backgroundColor: colors.primaryLight,
+      borderRadius: borderRadius.lg,
+      paddingVertical: spacing.sm,
+      alignItems: 'center',
+    },
+    confirmBtnDisabled: { backgroundColor: colors.borderLight },
+    confirmBtnText: { color: colors.primary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+    confirmBtnTextDisabled: { color: colors.disabled },
+    cancelBtn: {
+      paddingVertical: spacing.sm,
+      alignItems: 'center',
+      marginTop: spacing.xs,
+    },
+    cancelBtnText: { color: colors.textSecondary, fontSize: fontSize.md, fontWeight: fontWeight.semibold },
+  }), [colors]);
+
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.screenBg }}>
-        <Stack.Screen options={{ title: 'Pickup Confirmation', headerTitleStyle: { fontWeight: '700', color: '#fff' } }} />
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <Stack.Screen options={{ title: 'Pickup Confirmation', headerTitleStyle: { fontWeight: fontWeight.bold } }} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color={C.green} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </SafeAreaView>
     );
@@ -174,19 +292,19 @@ export default function PickupConfirmationScreen() {
 
   if (!order) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.screenBg }}>
-        <Stack.Screen options={{ title: 'Pickup Confirmation', headerTitleStyle: { fontWeight: '700', color: '#fff' } }} />
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <Stack.Screen options={{ title: 'Pickup Confirmation', headerTitleStyle: { fontWeight: fontWeight.bold } }} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: C.label, fontSize: 16 }}>Order not found</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: fontSize.md }}>Order not found</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.screenBg }}>
-      <Stack.Screen options={{ title: 'Pickup Confirmation', headerTitleStyle: { fontWeight: '700', color: '#fff' } }} />
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <Stack.Screen options={{ title: 'Pickup Confirmation', headerTitleStyle: { fontWeight: fontWeight.bold } }} />
+      <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: spacing.xl }}>
 
         {/* ────────── ORDER INFO CARD ────────── */}
         <View style={S.card}>
@@ -216,7 +334,7 @@ export default function PickupConfirmationScreen() {
             <>
               <View style={S.divider} />
               <View style={S.distRow}>
-                <Text style={{ fontSize: 14 }}>{'\u{1F4CD}'}</Text>
+                <MaterialIcons name={ICONS.location} size={fontSize.sm} color={colors.text} />
                 <Text style={S.distText}>{fmtDist(distKm)} from your location</Text>
               </View>
             </>
@@ -238,11 +356,11 @@ export default function PickupConfirmationScreen() {
           ) : (
             <>
               <TouchableOpacity style={S.proofBtn} onPress={handleTakePhoto}>
-                <Text style={{ fontSize: 18 }}>{'\u{1F4F7}'}</Text>
+                <MaterialIcons name={ICONS.camera} size={fontSize.lg} color={colors.text} />
                 <Text style={S.proofBtnText}>Take Photo</Text>
               </TouchableOpacity>
               <TouchableOpacity style={S.proofBtn} onPress={handleUploadFromGallery}>
-                <Text style={{ fontSize: 18 }}>{'\u{1F5BC}'}</Text>
+                <MaterialIcons name={ICONS.photoLibrary} size={fontSize.lg} color={colors.text} />
                 <Text style={S.proofBtnText}>Upload from Gallery</Text>
               </TouchableOpacity>
             </>
@@ -266,7 +384,7 @@ export default function PickupConfirmationScreen() {
           <TextInput
             style={S.notesInput}
             placeholder="Add any notes about the pickup..."
-            placeholderTextColor={C.label}
+            placeholderTextColor={colors.textSecondary}
             multiline
             numberOfLines={4}
             value={notes}
@@ -278,7 +396,7 @@ export default function PickupConfirmationScreen() {
         {/* ────────── CHECKBOX ────────── */}
         <TouchableOpacity style={S.chkRow} onPress={() => setConfirmed(!confirmed)} activeOpacity={0.7}>
           <View style={[S.chkBox, confirmed && S.chkBoxChecked]}>
-            {confirmed && <Text style={S.chkMark}>{'\u{2713}'}</Text>}
+            {confirmed && <MaterialIcons name={ICONS.check} size={fontSize.sm} color={colors.text} />}
           </View>
           <Text style={S.chkLabel}>I confirm I have collected this order from the store.</Text>
         </TouchableOpacity>
@@ -308,147 +426,3 @@ export default function PickupConfirmationScreen() {
     </SafeAreaView>
   );
 }
-
-const S = StyleSheet.create({
-  card: {
-    backgroundColor: C.cardBg,
-    borderRadius: C.cardRadius,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: C.border,
-  },
-  cardTitle: {
-    color: C.white,
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 16,
-  },
-
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: C.divider,
-  },
-  lbl: { color: C.label, fontSize: 14, width: 64 },
-  val: { color: C.nearWhite, fontSize: 14, fontWeight: '600', textAlign: 'right' },
-  sml: { color: C.label, fontSize: 12, marginTop: 2, textAlign: 'right' },
-
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  badgeText: { fontSize: 12, fontWeight: '700' },
-
-  divider: { height: 1, backgroundColor: C.divider, marginVertical: 12 },
-
-  distRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  distText: { color: C.nearWhite, fontSize: 13, fontWeight: '500' },
-
-  // Proof buttons
-  proofBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    backgroundColor: C.disabledBg,
-    marginBottom: 10,
-  },
-  proofBtnText: { color: C.nearWhite, fontSize: 15, fontWeight: '500' },
-
-  photoPreviewWrap: { alignItems: 'center', marginBottom: 12 },
-  photoPreview: { width: '100%', height: 200, borderRadius: 10, marginBottom: 8 },
-  removePhotoBtn: { paddingVertical: 6 },
-  removePhotoText: { color: C.label, fontSize: 14, fontWeight: '500' },
-
-  // Signature
-  sigPlaceholder: {
-    borderWidth: 1.5,
-    borderColor: C.disabledBg,
-    borderStyle: 'dashed',
-    borderRadius: 10,
-    padding: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 100,
-  },
-  sigLine: {
-    width: '80%',
-    height: 1,
-    backgroundColor: C.disabledBg,
-    marginBottom: 6,
-  },
-  sigPlaceholderText: { color: C.label, fontSize: 13, marginTop: 8, fontWeight: '500' },
-
-  // Notes
-  notesInput: {
-    backgroundColor: C.disabledBg,
-    borderRadius: 10,
-    padding: 12,
-    color: C.nearWhite,
-    fontSize: 14,
-    minHeight: 100,
-    borderWidth: 1,
-    borderColor: C.border,
-  },
-
-  // Checkbox
-  chkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 4,
-    marginBottom: 16,
-  },
-  chkBox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: C.label,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  chkBoxChecked: {
-    backgroundColor: C.green,
-    borderColor: C.green,
-  },
-  chkMark: { color: C.white, fontSize: 14, fontWeight: '700' },
-  chkLabel: { color: C.white, fontSize: 15, fontWeight: '500', flex: 1 },
-
-  // Footer
-  footer: {
-    padding: 16,
-    paddingBottom: 24,
-    borderTopWidth: 1,
-    borderTopColor: C.divider,
-    backgroundColor: C.screenBg,
-  },
-  confirmBtn: {
-    backgroundColor: C.greenDark,
-    borderRadius: C.cardRadius,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  confirmBtnDisabled: { backgroundColor: C.disabledBg },
-  confirmBtnText: { color: C.greenLight, fontSize: 16, fontWeight: '700' },
-  confirmBtnTextDisabled: { color: C.disabledText },
-
-  cancelBtn: {
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  cancelBtnText: { color: C.label, fontSize: 16, fontWeight: '600' },
-});

@@ -1,29 +1,33 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, SafeAreaView } from 'react-native';
 import { Stack, router } from 'expo-router';
+import { MaterialIcons } from '@expo/vector-icons';
 import { supabase } from '../../../src/lib/supabase';
 import { useAuthStore } from '../../../src/store/auth-store';
 import { DriverDocuments } from '../../../src/types/database';
-import { theme } from '../../../src/theme/driver-theme';
+import { useColors } from '../../../src/theme/ThemeProvider';
+import { spacing, fontSize, borderRadius, fontWeight } from '../../../src/theme/index';
+import { ICONS } from '../../../src/constants/icons';
 
 type DocType = { key: string; label: string; icon: string };
 
 const DOC_TYPES: DocType[] = [
-  { key: 'license', label: 'Driver License', icon: '\u{1F3C1}' },
-  { key: 'vehicle_registration', label: 'Vehicle Registration', icon: '\u{1F697}' },
-  { key: 'national_id', label: 'National ID', icon: '\u{1F464}' },
+  { key: 'license', label: 'Driver License', icon: ICONS.flag },
+  { key: 'vehicle_registration', label: 'Vehicle Registration', icon: ICONS.car },
+  { key: 'national_id', label: 'National ID', icon: ICONS.person },
 ];
 
-function statusBadge(s: string): { label: string; bg: string; text: string } {
+function statusBadge(s: string, colors: ReturnType<typeof useColors>): { label: string; bg: string; text: string } {
   const m: Record<string, { label: string; bg: string; text: string }> = {
-    approved: { label: 'Approved', bg: theme.statusDelivered, text: theme.statusDeliveredText },
-    rejected: { label: 'Rejected', bg: theme.statusCancelled, text: theme.statusCancelledText },
-    pending: { label: 'Pending Review', bg: theme.statusPending, text: theme.statusPendingText },
+    approved: { label: 'Approved', bg: colors.successLight, text: colors.success },
+    rejected: { label: 'Rejected', bg: colors.dangerLight, text: colors.danger },
+    pending: { label: 'Pending Review', bg: colors.infoLight, text: colors.info },
   };
-  return m[s] || { label: 'Not Uploaded', bg: theme.disabledBg, text: theme.disabledText };
+  return m[s] || { label: 'Not Uploaded', bg: colors.borderLight, text: colors.disabled };
 }
 
 export default function AccountStatusScreen() {
+  const colors = useColors();
   const profile = useAuthStore((s) => s.profile);
   const [loading, setLoading] = useState(true);
   const [driverId, setDriverId] = useState<string | null>(null);
@@ -32,6 +36,7 @@ export default function AccountStatusScreen() {
   const [totalDeliveries, setTotalDeliveries] = useState(0);
   const [averageRating, setAverageRating] = useState(0);
   const cancelledRef = useRef(false);
+  const S = useMemo(() => createStyles(colors, spacing, fontSize, borderRadius, fontWeight), [colors]);
 
   useEffect(() => {
     if (!profile) return;
@@ -72,18 +77,18 @@ export default function AccountStatusScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
-        <Stack.Screen options={{ title: 'Account Status', headerTitleStyle: { fontWeight: '600', color: theme.white } }} />
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <Stack.Screen options={{ title: 'Account Status', headerTitleStyle: { fontWeight: '600', color: colors.text } }} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color={theme.green} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
-      <Stack.Screen options={{ title: 'Account Status', headerTitleStyle: { fontWeight: '600', color: theme.white } }} />
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <Stack.Screen options={{ title: 'Account Status', headerTitleStyle: { fontWeight: '600', color: colors.text } }} />
 
       <FlatList
         data={DOC_TYPES}
@@ -94,9 +99,12 @@ export default function AccountStatusScreen() {
           <>
             {/* Verification Status Card */}
             <View style={S.verificationCard}>
-              <Text style={{ fontSize: 48, marginBottom: 12 }}>
-                {isVerified ? '\u{2705}' : '\u{1F512}'}
-              </Text>
+              <MaterialIcons
+                name={isVerified ? ICONS.check : ICONS.lock}
+                size={fontSize.giant}
+                color={isVerified ? colors.success : colors.textTertiary}
+                style={{ marginBottom: spacing.md }}
+              />
               <Text style={S.verificationTitle}>
                 {isVerified ? 'Account Verified' : 'Verification In Progress'}
               </Text>
@@ -146,7 +154,7 @@ export default function AccountStatusScreen() {
         }
         renderItem={({ item }) => {
           const doc = documents.get(item.key);
-          const badge = statusBadge(doc?.status ?? 'missing');
+          const badge = statusBadge(doc?.status ?? 'missing', colors);
           return (
             <TouchableOpacity
               style={S.docCard}
@@ -154,8 +162,8 @@ export default function AccountStatusScreen() {
               activeOpacity={0.7}
             >
               <View style={S.docLeft}>
-                <Text style={{ fontSize: 24 }}>{item.icon}</Text>
-                <View style={{ marginLeft: 12 }}>
+                <MaterialIcons name={item.icon as any} size={fontSize.xxl} color={colors.text} />
+                <View style={{ marginLeft: spacing.sm }}>
                   <Text style={S.docLabel}>{item.label}</Text>
                   {doc ? (
                     <Text style={S.docInfo}>
@@ -177,7 +185,7 @@ export default function AccountStatusScreen() {
           <>
             {isVerified && (
               <View style={S.verifiedBanner}>
-                <Text style={{ fontSize: 20, marginBottom: 8 }}>{'\u{1F389}'}</Text>
+                <MaterialIcons name={ICONS.celebration} size={fontSize.xl} color={colors.success} style={{ marginBottom: spacing.sm }} />
                 <Text style={S.verifiedBannerText}>
                   You're all set! Your account is verified and you can accept deliveries.
                 </Text>
@@ -190,26 +198,26 @@ export default function AccountStatusScreen() {
   );
 }
 
-const S = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useColors>, spacing: any, fontSize: any, borderRadius: any, fontWeight: any) => StyleSheet.create({
   verificationCard: {
-    backgroundColor: theme.card,
-    borderRadius: theme.radius.lg,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
     marginHorizontal: 16,
     marginTop: 16,
-    padding: theme.spacing.xl,
+    padding: spacing.xl,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: colors.border,
     alignItems: 'center',
   },
   verificationTitle: {
-    fontSize: theme.fontSize.xl,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.white,
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
     marginBottom: 8,
   },
   verificationDesc: {
-    fontSize: theme.fontSize.md,
-    color: theme.gray,
+    fontSize: fontSize.md,
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 20,
@@ -226,18 +234,18 @@ const S = StyleSheet.create({
   stepDot: {
     width: 12,
     height: 12,
-    borderRadius: 6,
-    marginRight: 12,
+    borderRadius: borderRadius.full,
+    marginRight: spacing.md,
   },
   stepDotActive: {
-    backgroundColor: theme.green,
+    backgroundColor: colors.primary,
   },
   stepDotPending: {
-    backgroundColor: theme.pendingDot,
+    backgroundColor: colors.border,
   },
   stepText: {
-    fontSize: theme.fontSize.md,
-    color: theme.white,
+    fontSize: fontSize.md,
+    color: colors.text,
   },
   statsRow: {
     flexDirection: 'row',
@@ -247,27 +255,27 @@ const S = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: theme.card,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: colors.border,
     alignItems: 'center',
   },
   statValue: {
-    fontSize: theme.fontSize.xxl,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.white,
+    fontSize: fontSize.xxl,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
     marginBottom: 2,
   },
   statLabel: {
-    fontSize: theme.fontSize.xs,
-    color: theme.gray,
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
   },
   sectionTitle: {
-    fontSize: theme.fontSize.xl,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.white,
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
     marginHorizontal: 16,
     marginTop: 24,
     marginBottom: 12,
@@ -276,13 +284,13 @@ const S = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: theme.card,
+    backgroundColor: colors.surface,
     marginHorizontal: 16,
     marginBottom: 8,
-    padding: theme.spacing.lg,
-    borderRadius: theme.radius.lg,
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: colors.border,
   },
   docLeft: {
     flexDirection: 'row',
@@ -290,42 +298,42 @@ const S = StyleSheet.create({
     flex: 1,
   },
   docLabel: {
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.white,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.text,
   },
   docInfo: {
-    fontSize: theme.fontSize.sm,
-    color: theme.gray,
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   docMissing: {
-    fontSize: theme.fontSize.sm,
-    color: theme.dim,
+    fontSize: fontSize.sm,
+    color: colors.textTertiary,
     marginTop: 2,
   },
   statusBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: theme.radius.sm,
+    borderRadius: borderRadius.sm,
   },
   statusBadgeText: {
-    fontSize: theme.fontSize.xs,
-    fontWeight: theme.fontWeight.semibold,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
   },
   verifiedBanner: {
-    backgroundColor: theme.statusDelivered,
+    backgroundColor: colors.successLight,
     marginHorizontal: 16,
     marginTop: 16,
-    padding: theme.spacing.lg,
-    borderRadius: theme.radius.lg,
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: theme.greenDark,
+    borderColor: colors.primaryLight,
   },
   verifiedBannerText: {
-    fontSize: theme.fontSize.md,
-    color: theme.statusDeliveredText,
+    fontSize: fontSize.md,
+    color: colors.success,
     textAlign: 'center',
     lineHeight: 20,
   },

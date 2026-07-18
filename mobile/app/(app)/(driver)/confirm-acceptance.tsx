@@ -1,26 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, SafeAreaView, Alert } from 'react-native';
 import { useLocalSearchParams, router, Stack } from 'expo-router';
+import { MaterialIcons } from '@expo/vector-icons';
 import { supabase } from '../../../src/lib/supabase';
 import { useAuthStore } from '../../../src/store/auth-store';
 import { DeliveryOrders, Stores } from '../../../src/types/database';
 import { calculateDistance } from '../../../src/lib/geo';
-
-const C = {
-  screenBg: '#0E1212',
-  cardBg: '#1A1D28',
-  white: '#FFFFFF',
-  nearWhite: '#F3F4F6',
-  label: '#6B7280',
-  green: '#22C55E',
-  greenDark: '#064E3B',
-  greenLight: '#4ADE80',
-  border: '#2A2D3A',
-  divider: '#2A2D3A',
-  cardRadius: 12,
-  disabledBg: '#2A2D3A',
-  disabledText: '#6B7280',
-};
+import { useColors } from '../../../src/theme/ThemeProvider';
+import { spacing, fontSize, borderRadius, fontWeight } from '../../../src/theme/spacing';
+import { ICONS } from '../../../src/constants/icons';
 
 function fmtCurr(v: number): string {
   return `${v.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} YER`;
@@ -31,6 +19,8 @@ function fmtDist(km: number): string {
 }
 
 export default function ConfirmAcceptanceScreen() {
+  const colors = useColors();
+
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
   const profile = useAuthStore((s) => s.profile);
 
@@ -88,6 +78,99 @@ export default function ConfirmAcceptanceScreen() {
   const bonus = order?.reward_bonus ?? 0;
   const total = (order?.driver_earnings ?? 0) + bonus;
 
+  const S = useMemo(() => StyleSheet.create({
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    cardTitle: {
+      color: colors.text,
+      fontSize: fontSize.md,
+      fontWeight: fontWeight.bold,
+      marginBottom: spacing.md,
+    },
+    row: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    lbl: { color: colors.textSecondary, fontSize: fontSize.sm, width: 80 },
+    val: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, textAlign: 'right' },
+    sml: { color: colors.textSecondary, fontSize: fontSize.xs, marginTop: spacing.xs, textAlign: 'right' },
+    divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.sm },
+    distRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    distText: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.medium },
+    payRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.sm,
+    },
+    totalRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    totalLbl: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+    totalVal: { color: colors.primary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+    chkRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.xs,
+      marginBottom: spacing.md,
+    },
+    chkBox: {
+      width: 24,
+      height: 24,
+      borderRadius: borderRadius.sm,
+      borderWidth: 2,
+      borderColor: colors.textSecondary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: spacing.sm,
+    },
+    chkBoxChecked: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    chkMark: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+    chkLabel: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.medium, flex: 1 },
+    footer: {
+      padding: spacing.md,
+      paddingBottom: spacing.lg,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      backgroundColor: colors.background,
+    },
+    confirmBtn: {
+      backgroundColor: colors.primaryLight,
+      borderRadius: borderRadius.lg,
+      paddingVertical: spacing.sm,
+      alignItems: 'center',
+    },
+    confirmBtnDisabled: { backgroundColor: colors.borderLight },
+    confirmBtnText: { color: colors.primary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+    confirmBtnTextDisabled: { color: colors.disabled },
+    cancelBtn: {
+      paddingVertical: spacing.sm,
+      alignItems: 'center',
+      marginTop: spacing.xs,
+    },
+    cancelBtnText: { color: colors.textSecondary, fontSize: fontSize.md, fontWeight: fontWeight.semibold },
+  }), [colors]);
+
   const handleCancel = () => {
     if (router.canGoBack()) router.back(); else router.replace('/(app)/(driver)');
   };
@@ -125,10 +208,10 @@ export default function ConfirmAcceptanceScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.screenBg }}>
-        <Stack.Screen options={{ title: 'Confirm Acceptance', headerTitleStyle: { fontWeight: '700', color: '#fff' } }} />
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <Stack.Screen options={{ title: 'Confirm Acceptance', headerTitleStyle: { fontWeight: fontWeight.bold } }} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color={C.green} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </SafeAreaView>
     );
@@ -136,19 +219,19 @@ export default function ConfirmAcceptanceScreen() {
 
   if (!order) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.screenBg }}>
-        <Stack.Screen options={{ title: 'Confirm Acceptance', headerTitleStyle: { fontWeight: '700', color: '#fff' } }} />
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <Stack.Screen options={{ title: 'Confirm Acceptance', headerTitleStyle: { fontWeight: fontWeight.bold } }} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: C.label, fontSize: 16 }}>Order not found</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: fontSize.md }}>Order not found</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.screenBg }}>
-      <Stack.Screen options={{ title: 'Confirm Acceptance', headerTitleStyle: { fontWeight: '700', color: '#fff' } }} />
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <Stack.Screen options={{ title: 'Confirm Acceptance', headerTitleStyle: { fontWeight: fontWeight.bold } }} />
+      <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: spacing.xl }}>
 
         {/* ────────── ORDER SUMMARY CARD ────────── */}
         <View style={S.card}>
@@ -178,7 +261,7 @@ export default function ConfirmAcceptanceScreen() {
             <>
               <View style={S.divider} />
               <View style={S.distRow}>
-                <Text style={{ fontSize: 14 }}>{'\u{1F4CD}'}</Text>
+                <MaterialIcons name={ICONS.location} size={fontSize.sm} color={colors.text} />
                 <Text style={S.distText}>{fmtDist(distKm)} from your location</Text>
               </View>
             </>
@@ -212,7 +295,7 @@ export default function ConfirmAcceptanceScreen() {
         {/* ────────── CHECKBOX ────────── */}
         <TouchableOpacity style={S.chkRow} onPress={() => setConfirmed(!confirmed)} activeOpacity={0.7}>
           <View style={[S.chkBox, confirmed && S.chkBoxChecked]}>
-            {confirmed && <Text style={S.chkMark}>✓</Text>}
+            {confirmed && <MaterialIcons name={ICONS.check} size={fontSize.sm} color={colors.text} />}
           </View>
           <Text style={S.chkLabel}>I am available to complete this delivery</Text>
         </TouchableOpacity>
@@ -242,106 +325,3 @@ export default function ConfirmAcceptanceScreen() {
     </SafeAreaView>
   );
 }
-
-const S = StyleSheet.create({
-  card: {
-    backgroundColor: C.cardBg,
-    borderRadius: C.cardRadius,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: C.border,
-  },
-  cardTitle: {
-    color: C.white,
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 16,
-  },
-
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: C.divider,
-  },
-  lbl: { color: C.label, fontSize: 14, width: 80 },
-  val: { color: C.nearWhite, fontSize: 14, fontWeight: '600', textAlign: 'right' },
-  sml: { color: C.label, fontSize: 12, marginTop: 2, textAlign: 'right' },
-
-  divider: { height: 1, backgroundColor: C.divider, marginVertical: 12 },
-
-  distRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  distText: { color: C.nearWhite, fontSize: 13, fontWeight: '500' },
-
-  // Payment
-  payRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  totalLbl: { color: C.white, fontSize: 15, fontWeight: '700' },
-  totalVal: { color: C.green, fontSize: 16, fontWeight: '700' },
-
-  // Checkbox
-  chkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 4,
-    marginBottom: 16,
-  },
-  chkBox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: C.label,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  chkBoxChecked: {
-    backgroundColor: C.green,
-    borderColor: C.green,
-  },
-  chkMark: { color: C.white, fontSize: 14, fontWeight: '700' },
-  chkLabel: { color: C.white, fontSize: 15, fontWeight: '500', flex: 1 },
-
-  // Footer
-  footer: {
-    padding: 16,
-    paddingBottom: 24,
-    borderTopWidth: 1,
-    borderTopColor: C.divider,
-    backgroundColor: C.screenBg,
-  },
-  confirmBtn: {
-    backgroundColor: C.greenDark,
-    borderRadius: C.cardRadius,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  confirmBtnDisabled: { backgroundColor: C.disabledBg },
-  confirmBtnText: { color: C.greenLight, fontSize: 16, fontWeight: '700' },
-  confirmBtnTextDisabled: { color: C.disabledText },
-
-  cancelBtn: {
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  cancelBtnText: { color: C.label, fontSize: 16, fontWeight: '600' },
-});
