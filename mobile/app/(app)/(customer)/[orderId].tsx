@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, SafeAreaView, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, SafeAreaView, Linking, Alert } from 'react-native';
 import { useLocalSearchParams, Stack, Link } from 'expo-router';
 import { Marker, Polyline } from 'react-native-maps';
 import SharedMap from '../../../src/components/ui/SharedMap';
@@ -9,7 +9,8 @@ import { supabase } from '../../../src/lib/supabase';
 import { useColors } from '../../../src/theme/ThemeProvider';
 import { spacing, fontSize, borderRadius, fontWeight } from '../../../src/theme/spacing';
 import { DeliveryOrders, DriverLocations } from '../../../src/types/database';
-import { calculateDistance, calculateETA } from '../../../src/lib/geo';
+import { calculateDistance, calculateETA, isValidCoordinate } from '../../../src/lib/geo';
+import { completeDelivery } from '../../../src/services/delivery-service';
 
 interface DriverProfile {
   id: string;
@@ -40,8 +41,7 @@ export default function CustomerOrderDetailScreen() {
 
   useEffect(() => {
     let cancelled = false;
-    let orderChannel: ReturnType<typeof supabase.channel> | null = null;
-    let locationChannel: ReturnType<typeof supabase.channel> | null = null;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
     const fetchDriverProfile = async (driverId: string) => {
       const { data: d } = await supabase.from('drivers').select('profile_id, availability, average_rating').eq('id', driverId).single();
@@ -58,43 +58,31 @@ export default function CustomerOrderDetailScreen() {
         setOrder(orderData);
         const { data: store } = await supabase.from('stores').select('name').eq('id', orderData.store_id).single();
         if (!cancelled && store) setStoreName(store.name);
-
         if (orderData.assigned_driver_id) {
           await fetchDriverProfile(orderData.assigned_driver_id);
           if (cancelled) return;
           const { data: latest } = await supabase.from('driver_locations').select('*').eq('order_id', orderId).order('recorded_at', { ascending: false }).limit(1).maybeSingle();
           if (latest && !cancelled) setDriverLocation(latest);
-
-          locationChannel = supabase.channel(`customer-driver-loc-${orderId}`)
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'driver_locations', filter: `order_id=eq.${orderId}` }, (payload) => {
-              setDriverLocation(payload.new as DriverLocations);
-            })
-            .subscribe();
         }
       }
 
       if (cancelled) { setLoading(false); return; }
 
-      orderChannel = supabase.channel(`customer-order-${orderId}`)
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'delivery_orders', filter: `id=eq.${orderId}` }, async (payload) => {
-          const updated = payload.new as DeliveryOrders;
-          setOrder(updated);
+      channel = supabase.channel(`customer-order-${orderId}`);
 
-          if (updated.assigned_driver_id && !locationChannel) {
-            await fetchDriverProfile(updated.assigned_driver_id);
-            if (cancelled) return;
-            const { data: latest } = await supabase.from('driver_locations').select('*').eq('order_id', orderId).order('recorded_at', { ascending: false }).limit(1).maybeSingle();
-            if (latest && !cancelled) setDriverLocation(latest);
+      channel.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'delivery_orders', filter: `id=eq.${orderId}` }, async (payload) => {
+        const updated = payload.new as DeliveryOrders;
+        setOrder(updated);
+        if (updated.assigned_driver_id) {
+          await fetchDriverProfile(updated.assigned_driver_id);
+        }
+      });
 
-            locationChannel = supabase.channel(`customer-driver-loc-${orderId}`)
-              .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'driver_locations', filter: `order_id=eq.${orderId}` }, (payload) => {
-                setDriverLocation(payload.new as DriverLocations);
-              })
-              .subscribe();
-          }
-        })
-        .subscribe();
+      channel.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'driver_locations', filter: `order_id=eq.${orderId}` }, (payload) => {
+        setDriverLocation(payload.new as DriverLocations);
+      });
 
+      channel.subscribe();
       if (!cancelled) setLoading(false);
     };
 
@@ -102,14 +90,21 @@ export default function CustomerOrderDetailScreen() {
 
     return () => {
       cancelled = true;
-      if (orderChannel) supabase.removeChannel(orderChannel);
-      if (locationChannel) { supabase.removeChannel(locationChannel); locationChannel = null; }
+      if (channel) supabase.removeChannel(channel);
     };
   }, [orderId]);
 
   const confirmDelivery = async () => {
-    await supabase.from('delivery_orders').update({ status: 'delivered' }).eq('id', orderId);
-    setOrder((prev) => prev ? { ...prev, status: 'delivered' as const } : null);
+    if (!order?.assigned_driver_id) {
+      Alert.alert('Error', 'No driver assigned to this order');
+      return;
+    }
+    const result = await completeDelivery(orderId, order.assigned_driver_id, 'none');
+    if (result.success) {
+      setOrder((prev) => prev ? { ...prev, status: 'delivered' as const } : null);
+    } else {
+      Alert.alert('Error', result.error);
+    }
   };
 
   const styles = StyleSheet.create({
@@ -212,7 +207,6 @@ export default function CustomerOrderDetailScreen() {
             })()}
             <SharedMap
               style={styles.map}
-              mapType="standard"
               loadingEnabled
               region={{
                 latitude: driverLocation.latitude,
@@ -222,16 +216,22 @@ export default function CustomerOrderDetailScreen() {
               }}
             >
               <Marker coordinate={{ latitude: driverLocation.latitude, longitude: driverLocation.longitude }} title="Driver" pinColor="blue" />
-              <Marker coordinate={{ latitude: order.pickup_latitude, longitude: order.pickup_longitude }} title="Pickup" pinColor="green" />
-              <Marker coordinate={{ latitude: order.delivery_latitude, longitude: order.delivery_longitude }} title="Delivery" pinColor="red" />
-              <Polyline
-                coordinates={[
-                  { latitude: driverLocation.latitude, longitude: driverLocation.longitude },
-                  { latitude: order.delivery_latitude, longitude: order.delivery_longitude },
-                ]}
-                strokeColor={colors.secondary}
-                strokeWidth={2}
-              />
+              {isValidCoordinate(order.pickup_latitude, order.pickup_longitude) && (
+                <Marker coordinate={{ latitude: order.pickup_latitude, longitude: order.pickup_longitude }} title="Pickup" pinColor="green" />
+              )}
+              {isValidCoordinate(order.delivery_latitude, order.delivery_longitude) && (
+                <Marker coordinate={{ latitude: order.delivery_latitude, longitude: order.delivery_longitude }} title="Delivery" pinColor="red" />
+              )}
+              {isValidCoordinate(driverLocation.latitude, driverLocation.longitude) && isValidCoordinate(order.delivery_latitude, order.delivery_longitude) && (
+                <Polyline
+                  coordinates={[
+                    { latitude: driverLocation.latitude, longitude: driverLocation.longitude },
+                    { latitude: order.delivery_latitude, longitude: order.delivery_longitude },
+                  ]}
+                  strokeColor={colors.secondary}
+                  strokeWidth={2}
+                />
+              )}
             </SharedMap>
           </View>
         ) : order.status === 'driver_accepted' || order.status === 'driver_arrived_store' || order.status === 'picked_up' || order.status === 'on_the_way' ? (

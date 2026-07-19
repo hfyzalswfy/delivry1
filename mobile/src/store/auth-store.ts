@@ -1,7 +1,9 @@
 import { create } from 'zustand';
-import { Session, User } from '@supabase/supabase-js';
+import { Session, User, Subscription } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { Profiles, UserRole } from '../types/database';
+
+let authListener: Subscription | null = null;
 
 interface AuthState {
   session: Session | null;
@@ -30,9 +32,32 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   needsSetup: false,
 
   initialize: async () => {
+    // Register the auth listener FIRST, before any session check.
+    // This ensures the listener exists for future auth events (SIGN_IN, SIGN_OUT, TOKEN_REFRESHED)
+    // even when there's a cached session that triggers an early return.
+    if (authListener) { authListener.unsubscribe(); }
+    const authResult = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        if (profile) {
+          const needsSetup = await checkRoleRecord(profile);
+          set({ session, user: session.user, profile, isAuthenticated: true, needsSetup });
+        } else {
+          set({ session: null, user: null, profile: null, isAuthenticated: false, needsSetup: false });
+        }
+      } else {
+        set({ session: null, user: null, profile: null, isAuthenticated: false, needsSetup: false });
+      }
+    });
+    authListener = authResult?.data?.subscription ?? null;
+
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user) {
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', session.user.id)
@@ -48,31 +73,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
     }
     set({ isLoading: false, isInitialized: true });
-
-    supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        if (profile) {
-          const needsSetup = await checkRoleRecord(profile);
-          set({ session, user: session.user, profile, isAuthenticated: true, needsSetup });
-        }
-      } else {
-        set({ session: null, user: null, profile: null, isAuthenticated: false, needsSetup: false });
-      }
-    });
   },
 
   signIn: async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const supabaseRes = await supabase.auth.signInWithPassword({ email, password });
+    const { data: signInData, error } = supabaseRes;
     if (error) return { error: error.message };
 
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user) {
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('id')
         .eq('id', session.user.id)
@@ -103,6 +113,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signOut: async () => {
+    if (authListener) { authListener.unsubscribe(); authListener = null; }
     await supabase.auth.signOut();
     set({ session: null, user: null, profile: null, isAuthenticated: false, needsSetup: false });
   },

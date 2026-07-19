@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, SafeAreaView } from 'react-native';
 import { router } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -23,6 +23,29 @@ export default function CustomerOrdersScreen() {
   };
   const [orders, setOrders] = useState<DeliveryOrders[]>([]);
   const [loading, setLoading] = useState(true);
+  const addressCheckDone = useRef(false);
+
+  useEffect(() => {
+    if (!profile || addressCheckDone.current) return;
+    addressCheckDone.current = true;
+
+    const checkAddresses = async () => {
+      const { data: customer } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('profile_id', profile.id)
+        .maybeSingle();
+      if (!customer) return;
+      const { count } = await supabase
+        .from('customer_addresses')
+        .select('id', { count: 'exact', head: true })
+        .eq('customer_id', customer.id);
+      if (count === 0) {
+        router.replace('/(app)/(customer)/addresses/complete-address');
+      }
+    };
+    checkAddresses();
+  }, [profile]);
 
   useEffect(() => {
     if (!profile) return;

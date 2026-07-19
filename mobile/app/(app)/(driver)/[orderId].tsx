@@ -7,7 +7,7 @@ import { supabase } from '../../../src/lib/supabase';
 import { useAuthStore } from '../../../src/store/auth-store';
 import { useDriverLocation } from '../../../src/hooks/use-driver-location';
 import { DeliveryOrders, Stores } from '../../../src/types/database';
-import { calculateDistance, calculateETA } from '../../../src/lib/geo';
+import { calculateDistance, calculateETA, isValidCoordinate } from '../../../src/lib/geo';
 import { useColors } from '../../../src/theme/ThemeProvider';
 import { spacing, fontSize, borderRadius, fontWeight } from '../../../src/theme/spacing';
 import { ICONS } from '../../../src/constants/icons';
@@ -268,7 +268,7 @@ export default function DriverOrderDetailScreen() {
   const openMap = () => {
     if (!order) { Alert.alert('Error', 'Order data not available'); return; }
     if (driverLat == null || driverLng == null) { Alert.alert('Location Unavailable', 'Your current location is not available. Please wait for GPS to activate.'); return; }
-    if (!order.pickup_latitude || !order.pickup_longitude) { Alert.alert('Missing Destination', 'Pickup coordinates are not set for this order.'); return; }
+    if (!isValidCoordinate(order.pickup_latitude, order.pickup_longitude)) { Alert.alert('Missing Destination', 'Pickup coordinates are not set for this order.'); return; }
     Linking.openURL(`https://www.google.com/maps/dir/?api=1&origin=${driverLat},${driverLng}&destination=${order.pickup_latitude},${order.pickup_longitude}&travelmode=driving`).catch(() => Alert.alert('Error', 'Could not open maps. Please check your navigation app.'));
   };
 

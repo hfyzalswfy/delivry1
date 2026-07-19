@@ -20,10 +20,15 @@ export default function LoginScreen() {
     setError('');
     if (!email || !password) { setError('Please fill in all fields'); return; }
     setLoading(true);
-    const result = await signIn(email, password);
-    if (!mountedRef.current) return;
-    setLoading(false);
-    if (result.error) { setError(result.error); return; }
+    try {
+      const result = await signIn(email, password);
+      if (!mountedRef.current) return;
+      setLoading(false);
+      if (result.error) { setError(result.error); return; }
+    } catch (e) {
+      if (mountedRef.current) setLoading(false);
+      setError(e instanceof Error ? e.message : 'An unexpected error occurred');
+    }
   };
 
   return (

@@ -1,15 +1,17 @@
-import { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Switch, SafeAreaView } from 'react-native';
 import { Stack } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useColors } from '../../../src/theme/ThemeProvider';
 import { spacing, fontSize, borderRadius, fontWeight } from '../../../src/theme/index';
+import { useSettingsStore } from '../../../src/store/settings-store';
+import type { NotificationPreferences } from '../../../src/store/settings-store';
 
 export default function NotificationSettingsScreen() {
   const { t } = useTranslation();
   const colors = useColors();
-  const [switches, setSwitches] = useState<Record<string, boolean>>({ push: true, email: true, sms: false, orderUpdates: true, promotional: false });
-  const toggle = (key: string) => setSwitches((prev) => ({ ...prev, [key]: !prev[key] }));
+  const switches = useSettingsStore((s) => s.notifications);
+  const setNotification = useSettingsStore((s) => s.setNotification);
+  const toggle = (key: keyof NotificationPreferences) => setNotification(key, !switches[key]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>

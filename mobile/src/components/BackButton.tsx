@@ -8,11 +8,11 @@ interface BackButtonProps {
   fallbackRoute?: string;
 }
 
-export function BackButton({ fallbackRoute = '/(app)/(driver)' }: BackButtonProps) {
+export function BackButton({ fallbackRoute = '/(app)' }: BackButtonProps) {
   const colors = useColors();
   return (
     <TouchableOpacity
-      onPress={() => { if (router.canGoBack()) router.back(); else router.replace(fallbackRoute as any); }}
+      onPress={() => { try { if (router.canGoBack()) router.back(); else router.replace(fallbackRoute as any); } catch { router.replace(fallbackRoute as any); } }}
       style={styles.btn}
       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       accessibilityLabel="Go back"

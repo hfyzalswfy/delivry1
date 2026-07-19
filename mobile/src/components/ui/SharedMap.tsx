@@ -2,7 +2,10 @@ import { forwardRef } from 'react';
 import MapView, { UrlTile, MapViewProps } from 'react-native-maps';
 import { useFullTheme } from '../../theme/ThemeProvider';
 
-const LIGHT_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+// CartoDB tiles — production-safe, free for development, no billing required.
+// Light: https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png
+// Dark:  https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png
+const LIGHT_TILE_URL = 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png';
 const DARK_TILE_URL = 'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
 
 export type SharedMapRef = MapView;

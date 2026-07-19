@@ -96,6 +96,13 @@ export const ICONS = {
   autoAwesome: 'auto-awesome',
   celebration: 'auto-awesome',
 
+  // Selection
+  delete: 'delete',
+  work: 'work',
+  radioChecked: 'radio-button-checked',
+  radioUnchecked: 'radio-button-unchecked',
+  add: 'add',
+
   // Misc
   wave: 'waves',
   gift: 'card-giftcard',

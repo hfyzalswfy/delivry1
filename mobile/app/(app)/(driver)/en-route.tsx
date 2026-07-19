@@ -9,7 +9,7 @@ import { useAuthStore } from '../../../src/store/auth-store';
 import { useDriverLocation } from '../../../src/hooks/use-driver-location';
 import { arriveAtDestination, startDelivery } from '../../../src/services/delivery-service';
 import { DeliveryOrders, Stores } from '../../../src/types/database';
-import { calculateDistance, calculateETA } from '../../../src/lib/geo';
+import { calculateDistance, calculateETA, isValidCoordinate } from '../../../src/lib/geo';
 import { useColors } from '../../../src/theme/ThemeProvider';
 import { spacing, fontSize, borderRadius, fontWeight } from '../../../src/theme/index';
 import { ICONS } from '../../../src/constants/icons';
@@ -149,7 +149,7 @@ export default function EnRouteScreen() {
   const startNavigation = () => {
     if (!order) { Alert.alert('Error', 'Order data not available'); return; }
     if (driverLat == null || driverLng == null) { Alert.alert('Location Unavailable', 'Your current location is not available. Please wait for GPS to activate.'); return; }
-    if (!order.delivery_latitude || !order.delivery_longitude) { Alert.alert('Missing Destination', 'Delivery destination coordinates are not set for this order.'); return; }
+    if (!isValidCoordinate(order.delivery_latitude, order.delivery_longitude)) { Alert.alert('Missing Destination', 'Delivery destination coordinates are not set for this order.'); return; }
     Linking.openURL(`https://www.google.com/maps/dir/?api=1&origin=${driverLat},${driverLng}&destination=${order.delivery_latitude},${order.delivery_longitude}&travelmode=driving`).catch(() => Alert.alert('Error', 'Could not open maps. Please check your navigation app.'));
   };
 
@@ -236,9 +236,15 @@ export default function EnRouteScreen() {
             {driverLat != null && driverLng != null && (
               <Marker coordinate={{ latitude: driverLat, longitude: driverLng }} title="You" pinColor="#3B82F6" />
             )}
-            <Marker coordinate={{ latitude: order.pickup_latitude, longitude: order.pickup_longitude }} title={store?.name || 'Store'} pinColor="green" />
-            <Marker coordinate={{ latitude: order.delivery_latitude, longitude: order.delivery_longitude }} title="Customer" pinColor="red" />
-            <Polyline coordinates={[{ latitude: order.pickup_latitude, longitude: order.pickup_longitude }, { latitude: order.delivery_latitude, longitude: order.delivery_longitude }]} strokeColor={colors.primary} strokeWidth={3} />
+              {isValidCoordinate(order.pickup_latitude, order.pickup_longitude) && (
+                <Marker coordinate={{ latitude: order.pickup_latitude, longitude: order.pickup_longitude }} title={store?.name || 'Store'} pinColor="green" />
+              )}
+            {isValidCoordinate(order.delivery_latitude, order.delivery_longitude) && (
+              <Marker coordinate={{ latitude: order.delivery_latitude, longitude: order.delivery_longitude }} title="Customer" pinColor="red" />
+            )}
+            {isValidCoordinate(order.pickup_latitude, order.pickup_longitude) && isValidCoordinate(order.delivery_latitude, order.delivery_longitude) && (
+              <Polyline coordinates={[{ latitude: order.pickup_latitude, longitude: order.pickup_longitude }, { latitude: order.delivery_latitude, longitude: order.delivery_longitude }]} strokeColor={colors.primary} strokeWidth={3} />
+            )}
           </SharedMap>
 
           <View style={S.etaOverlay}>

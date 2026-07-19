@@ -1,3 +1,13 @@
+/** Returns true if lat/lng are valid, non-zero coordinates (not Null Island). */
+export function isValidCoordinate(
+  lat: number | null | undefined,
+  lng: number | null | undefined,
+): boolean {
+  if (lat == null || lng == null) return false;
+  if (lat === 0 && lng === 0) return false;
+  return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+}
+
 export function calculateDistance(
   lat1: number,
   lon1: number,

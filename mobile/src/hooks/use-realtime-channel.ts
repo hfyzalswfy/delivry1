@@ -1,3 +1,11 @@
+// @deprecated Single-channel subscriptions are created inline per-file.
+// This hook is not imported anywhere and will be removed in a future cleanup.
+// All realtime subscriptions use the pattern:
+//   supabase.channel(name).on(...).on(...).subscribe()
+// with cleanup in effect returns.
+//
+// To re-enable if needed, uncomment and ensure proper RealtimeChannel typing.
+/*
 import { useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
@@ -43,3 +51,4 @@ export function useRealtimeChannel(
 
   return { channelRef };
 }
+*/

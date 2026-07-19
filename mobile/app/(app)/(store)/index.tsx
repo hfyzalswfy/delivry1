@@ -1,126 +1,131 @@
-import { useState, useEffect, useMemo } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, SafeAreaView } from 'react-native';
-import { Link, router } from 'expo-router';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { ICONS } from '../../../src/constants/icons';
-import { supabase } from '../../../src/lib/supabase';
-import { useAuthStore } from '../../../src/store/auth-store';
+import { useCallback } from 'react';
+import { router } from 'expo-router';
 import { useColors } from '../../../src/theme/ThemeProvider';
-import { spacing, fontSize, borderRadius, fontWeight } from '../../../src/theme/spacing';
-import { DeliveryOrders } from '../../../src/types/database';
+import { spacing, fontSize, fontWeight } from '../../../src/theme/spacing';
+import { ScreenLayout } from '../../../src/components/ui/ScreenLayout';
+import { EmptyState } from '../../../src/components/ui/EmptyState';
+import { useStoreDashboard } from '../../../src/hooks/store/use-store-dashboard';
+import { DashboardHeader } from '../../../src/components/store/DashboardHeader';
+import { StatisticCard } from '../../../src/components/store/StatisticCard';
+import { QuickActionCard } from '../../../src/components/store/QuickActionCard';
+import { RecentOrderItem } from '../../../src/components/store/RecentOrderItem';
 
-export default function StoreOrdersScreen() {
+export default function StoreDashboardScreen() {
   const colors = useColors();
+  const { store, stats, recentOrders, wallet, loading, error, refreshing, refresh } = useStoreDashboard();
 
-  const statusColors: Record<string, string> = {
-    pending: colors.statusDraft,
-    driver_accepted: colors.statusAssigned,
-    driver_arrived_store: colors.statusPublished,
-    picked_up: colors.statusPickedUp,
-    on_the_way: colors.statusInTransit,
-    delivered: colors.statusDelivered,
-    cancelled: colors.statusCancelled,
-  };
+  const handleCreateOrder = useCallback(() => {
+    router.push('/(app)/(store)/create-order');
+  }, []);
 
-  const profile = useAuthStore((s) => s.profile);
-  const [orders, setOrders] = useState<DeliveryOrders[]>([]);
-  const [loading, setLoading] = useState(true);
+  const handleComingSoon = useCallback((feature: string) => {
+    Alert.alert('Coming Soon', `${feature} will be available in the next phase.`);
+  }, []);
 
-  useEffect(() => {
-    if (!profile) return;
-    let cancelled = false;
-    let channel: ReturnType<typeof supabase.channel> | null = null;
+  const handleViewAllOrders = useCallback(() => {
+    router.push('/(app)/(store)/orders');
+  }, []);
 
-    const init = async () => {
-      const { data: store } = await supabase.from('stores').select('id').eq('owner_id', profile.id).single();
-      if (cancelled) return;
-      if (!store) { setLoading(false); return; }
+  const handleCustomers = useCallback(() => {
+    router.push('/(app)/(store)/customers');
+  }, []);
 
-      const { data } = await supabase
-        .from('delivery_orders')
-        .select('*')
-        .eq('store_id', store.id)
-        .order('created_at', { ascending: false });
-      if (!cancelled && data) setOrders(data);
-      if (!cancelled) setLoading(false);
+  const handleSettings = useCallback(() => {
+    router.push('/(app)/(store)/settings');
+  }, []);
 
-      channel = supabase.channel(`store-orders-${profile.id}`)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'delivery_orders', filter: `store_id=eq.${store.id}` }, (payload) => {
-          setOrders((prev) => [payload.new as DeliveryOrders, ...prev]);
-        })
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'delivery_orders', filter: `store_id=eq.${store.id}` }, (payload) => {
-          setOrders((prev) => prev.map((o) => o.id === payload.new.id ? payload.new as DeliveryOrders : o));
-        })
-        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'delivery_orders', filter: `store_id=eq.${store.id}` }, (payload) => {
-          setOrders((prev) => prev.filter((o) => o.id !== payload.old.id));
-        })
-        .subscribe();
-    };
+  if (loading) {
+    return (
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
 
-    init();
+  if (error) {
+    return (
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
+        <EmptyState icon={'\u274C'} title="Something went wrong" subtitle={error} />
+      </View>
+    );
+  }
 
-    return () => {
-      cancelled = true;
-      if (channel) supabase.removeChannel(channel);
-    };
-  }, [profile?.id]);
-
-  const styles = useMemo(() => StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background, padding: spacing.md },
-    createButton: { backgroundColor: colors.primary, borderRadius: borderRadius.md, padding: spacing.md, alignItems: 'center', marginBottom: spacing.md },
-    createButtonText: { color: colors.white, fontSize: fontSize.md, fontWeight: fontWeight.semibold },
-    emptyState: { flex: 1, justifyContent: 'center' },
-    emptyContent: { alignItems: 'center' },
-    emptyTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.text },
-    emptySubtitle: { fontSize: fontSize.sm, color: colors.textSecondary, textAlign: 'center' },
-    orderCard: { backgroundColor: colors.surface, borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.sm, borderWidth: 1, borderColor: colors.border },
-    orderHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs },
-    statusDot: { width: 8, height: 8, borderRadius: borderRadius.sm, marginRight: spacing.sm },
-    orderStatus: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, flex: 1 },
-    orderPrice: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.primary },
-    customerName: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.text },
-    route: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: 2 },
-  }), [colors]);
-
-  if (loading) return <ActivityIndicator size="large" style={{ flex: 1, backgroundColor: colors.background }} />;
+  if (!store) {
+    return (
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
+        <EmptyState icon={'\uD83C\uDFEA'} title="No Store Found" subtitle="Please complete your store setup to access the dashboard." />
+      </View>
+    );
+  }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <View style={styles.container}>
-      <Link href="/(app)/(store)/create-order" style={styles.createButton}>
-        <Text style={styles.createButtonText}>+ New Order</Text>
-      </Link>
+    <ScreenLayout refreshing={refreshing} onRefresh={refresh}>
+      <DashboardHeader store={store} wallet={wallet} />
 
-      <FlatList
-        data={orders}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={orders.length === 0 ? styles.emptyState : undefined}
-        ListEmptyComponent={
-          <View style={styles.emptyContent}>
-            <MaterialIcons name={ICONS.clipboard} size={fontSize.giant} color={colors.textSecondary} style={{ marginBottom: spacing.md }} />
-            <Text style={styles.emptyTitle}>No orders yet</Text>
-            <Text style={styles.emptySubtitle}>Create your first delivery order to get started</Text>
-          </View>
-        }
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.orderCard}
-            onPress={() => router.push(`/(app)/(store)/${item.id}`)}
-          >
-            <View style={styles.orderHeader}>
-              <View style={[styles.statusDot, { backgroundColor: statusColors[item.status] || colors.statusDraft }]} />
-              <Text style={[styles.orderStatus, { color: statusColors[item.status] || colors.statusDraft }]}>
-                {item.status.toUpperCase()}
-              </Text>
-              <Text style={styles.orderPrice}>${item.delivery_fee.toFixed(2)}</Text>
-            </View>
-            <Text style={styles.customerName}>{item.customer_name}</Text>
-            <Text style={styles.route}>{item.pickup_address}</Text>
-          </TouchableOpacity>
-        )}
-      />
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
+      <View style={styles.quickActionsGrid}>
+        <QuickActionCard icon="add-circle" label="Create Order" onPress={handleCreateOrder} />
+        <QuickActionCard icon="assignment" label="All Orders" onPress={handleViewAllOrders} />
+        <QuickActionCard icon="people" label="Customers" onPress={handleCustomers} />
+        <QuickActionCard icon="settings" label="Settings" onPress={handleSettings} />
       </View>
-    </SafeAreaView>
+
+      {stats && (
+        <>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Today's Summary</Text>
+          <View style={styles.statsGrid}>
+            <StatisticCard icon="receipt-long" value={stats.totalToday} label="Total Orders" color={colors.primary} bgColor={colors.primaryLight} />
+            <StatisticCard icon="hourglass-empty" value={stats.pendingCount} label="Pending" color={colors.statusDraft} bgColor={colors.borderLight} />
+            <StatisticCard icon="local-shipping" value={stats.driverProcessingCount} label="Processing" color={colors.statusAssigned} bgColor={colors.purpleLight} />
+            <StatisticCard icon="directions-car" value={stats.inTransitCount} label="In Transit" color={colors.statusInTransit} bgColor={colors.warningLight} />
+            <StatisticCard icon="check-circle" value={stats.deliveredCount} label="Delivered" color={colors.statusDelivered} bgColor={colors.successLight} />
+            <StatisticCard icon="cancel" value={stats.cancelledCount} label="Cancelled" color={colors.statusCancelled} bgColor={colors.dangerLight} />
+          </View>
+
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Today's Revenue</Text>
+          <View style={styles.statsGrid}>
+            <StatisticCard icon="attach-money" value={`$${stats.totalDeliveryFees.toFixed(2)}`} label="Delivery Fees" color={colors.secondary} bgColor={colors.secondaryLight} />
+            <StatisticCard icon="payment" value={`$${stats.totalCommission.toFixed(2)}`} label="Commission" color={colors.info} bgColor={colors.infoLight} />
+          </View>
+        </>
+      )}
+
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Orders</Text>
+      {recentOrders.length === 0 ? (
+        <EmptyState icon={'\uD83D\uDCCB'} title="No orders yet" subtitle="Create your first delivery order to get started" />
+      ) : (
+        recentOrders.map((order) => (
+          <RecentOrderItem key={order.id} order={order} />
+        ))
+      )}
+
+      {recentOrders.length > 0 && (
+        <TouchableOpacity style={styles.viewAllBtn} onPress={handleViewAllOrders}>
+          <Text style={[styles.viewAllText, { color: colors.primary }]}>View All Orders</Text>
+          <MaterialIcons name="arrow-forward" size={fontSize.md} color={colors.primary} />
+        </TouchableOpacity>
+      )}
+
+      {stats && (
+        <View style={styles.bottomSection}>
+          <Text style={[styles.footerText, { color: colors.textTertiary }]}>
+            {stats.totalToday} order{stats.totalToday !== 1 ? 's' : ''} today {'\u00B7'} {stats.deliveredCount} delivered
+          </Text>
+        </View>
+      )}
+    </ScreenLayout>
   );
 }
 
+const styles = StyleSheet.create({
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.lg },
+  sectionTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, marginBottom: spacing.sm, marginTop: spacing.xs },
+  quickActionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.sm },
+  viewAllBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.sm },
+  viewAllText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginRight: spacing.xs },
+  bottomSection: { alignItems: 'center', paddingVertical: spacing.md },
+  footerText: { fontSize: fontSize.sm, textAlign: 'center' },
+});

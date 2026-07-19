@@ -4,7 +4,7 @@ export type DeliveryIssueType = 'customer_unavailable' | 'wrong_address' | 'cust
 export type NotificationType = 'order_update' | 'new_message' | 'driver_assignment' | 'nearby_order' | 'complaint_update' | 'system';
 export type DriverAvailability = 'online' | 'offline' | 'busy';
 export type PaymentMethod = 'cash' | 'card' | 'wallet';
-export type OrderPriority = 'normal' | 'express' | 'scheduled';
+export type OrderPriority = 'normal' | 'express';
 export type MessageType = 'text' | 'image' | 'voice' | 'video' | 'file' | 'location' | 'system';
 export type DocumentStatus = 'pending' | 'approved' | 'rejected';
 
@@ -31,7 +31,27 @@ export interface Stores {
   latitude: number | null;
   longitude: number | null;
   logo_url: string | null;
+  landmark: string | null;
+  building: string | null;
+  notes: string | null;
   is_active: boolean;
+  deleted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomerAddresses {
+  id: string;
+  customer_id: string;
+  label: string | null;
+  address_text: string;
+  latitude: number;
+  longitude: number;
+  apartment: string | null;
+  floor: string | null;
+  landmark: string | null;
+  notes: string | null;
+  is_default: boolean;
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
@@ -100,6 +120,7 @@ export interface DeliveryOrders {
   delivery_apartment: string | null;
   delivery_floor: string | null;
   delivery_landmark: string | null;
+  delivery_notes: string | null;
   shipment_type_id: string | null;
   shipment_description: string | null;
   shipment_weight_kg: number | null;
@@ -259,6 +280,7 @@ export interface Database {
     Tables: {
       profiles: { Row: Profiles; Insert: Partial<Profiles>; Update: Partial<Profiles> };
       stores: { Row: Stores; Insert: Partial<Stores>; Update: Partial<Stores> };
+      customer_addresses: { Row: CustomerAddresses; Insert: Partial<CustomerAddresses>; Update: Partial<CustomerAddresses> };
       customers: { Row: Customers; Insert: Partial<Customers>; Update: Partial<Customers> };
       drivers: { Row: Drivers; Insert: Partial<Drivers>; Update: Partial<Drivers> };
       shipment_types: { Row: ShipmentTypes; Insert: Partial<ShipmentTypes>; Update: Partial<ShipmentTypes> };
@@ -282,6 +304,8 @@ export interface Database {
       is_admin: { Args: Record<string, never>; Returns: boolean };
       add_wallet_transaction: { Args: { p_wallet_id: string; p_amount: number; p_type: string; p_description?: string; p_reference_type?: string; p_reference_id?: string }; Returns: string };
       find_customer_by_phone: { Args: { p_phone: string }; Returns: string };
+      get_customer_info: { Args: { p_phone: string }; Returns: Record<string, unknown> };
+      get_customer_addresses: { Args: { p_customer_id: string }; Returns: Record<string, unknown> };
       accept_order: { Args: { p_order_id: string; p_driver_id: string }; Returns: Record<string, unknown> };
       arrive_at_destination: { Args: { p_order_id: string; p_driver_id: string }; Returns: Record<string, unknown> };
       complete_delivery: { Args: { p_order_id: string; p_driver_id: string; p_verification_method: string; p_verification_data?: string }; Returns: Record<string, unknown> };

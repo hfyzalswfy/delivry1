@@ -208,7 +208,7 @@ export default function ConfirmDeliveryScreen() {
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.lg }}>
           <MaterialIcons name={ICONS.warning} size={fontSize.xl} color={colors.warning} />
           <Text style={{ color: colors.text, fontSize: fontSize.md, textAlign: 'center', marginBottom: spacing.lg }}>{accessError}</Text>
-          <TouchableOpacity style={S.backBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={S.backBtn} onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/(app)/(driver)'); }}>
             <Text style={S.backBtnText}>Go Back</Text>
           </TouchableOpacity>
         </View>

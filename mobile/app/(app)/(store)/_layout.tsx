@@ -1,12 +1,14 @@
 import { Tabs } from 'expo-router';
-import { View } from 'react-native';
+import { View, Text } from 'react-native';
 import { useColors } from '../../../src/theme/ThemeProvider';
 import { NotificationsButton } from '../../../src/components/NotificationsButton';
 import { SignOutButton } from '../../../src/components/SignOutButton';
 import { TabIcon } from '../../../src/components/ui/TabIcon';
+import { useAuthStore } from '../../../src/store/auth-store';
 
 export default function StoreLayout() {
   const colors = useColors();
+  const { isAuthenticated, profile } = useAuthStore();
   return (
     <Tabs
       screenOptions={{
@@ -35,8 +37,8 @@ export default function StoreLayout() {
       <Tabs.Screen
         name="create-order"
         options={{
+          href: null,
           title: 'New Order',
-          tabBarIcon: ({ focused }) => <TabIcon icon="createOutline" focused={focused} />,
         }}
       />
       <Tabs.Screen
@@ -54,10 +56,38 @@ export default function StoreLayout() {
         }}
       />
       <Tabs.Screen
+        name="store-address"
+        options={{
+          href: null,
+          title: 'Store Address',
+        }}
+      />
+      <Tabs.Screen
         name="[orderId]"
         options={{
           href: null,
           title: 'Order Details',
+        }}
+      />
+      <Tabs.Screen
+        name="orders"
+        options={{
+          href: null,
+          title: 'All Orders',
+        }}
+      />
+      <Tabs.Screen
+        name="customers"
+        options={{
+          href: null,
+          title: 'Customers',
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          href: null,
+          title: 'Settings',
         }}
       />
     </Tabs>

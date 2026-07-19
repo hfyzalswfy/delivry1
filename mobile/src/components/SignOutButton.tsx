@@ -9,9 +9,8 @@ export function SignOutButton({ onPress }: { onPress?: () => void }) {
   const handlePress = () => {
     Alert.alert('Sign Out', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: () => signOut() },
+      { text: 'Sign Out', style: 'destructive', onPress: () => { signOut(); onPress?.(); } },
     ]);
-    onPress?.();
   };
 
   return (

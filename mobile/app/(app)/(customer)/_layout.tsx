@@ -47,6 +47,13 @@ export default function CustomerLayout() {
         }}
       />
       <Tabs.Screen
+        name="addresses"
+        options={{
+          href: null,
+          title: 'Addresses',
+        }}
+      />
+      <Tabs.Screen
         name="[orderId]"
         options={{
           href: null,

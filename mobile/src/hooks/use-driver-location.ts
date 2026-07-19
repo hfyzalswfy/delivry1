@@ -2,15 +2,19 @@ import { useEffect, useRef } from 'react';
 import * as Location from 'expo-location';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/auth-store';
+import { isValidCoordinate } from '../lib/geo';
 
 export function useDriverLocation(orderId?: string) {
   const profile = useAuthStore((s) => s.profile);
   const cancelledRef = useRef(false);
   const subscriptionRef = useRef<Location.LocationSubscription | null>(null);
   const driverIdRef = useRef<string | null>(null);
+  const orderIdRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     if (profile?.role !== 'driver' || !orderId) return;
+    if (orderIdRef.current === orderId && driverIdRef.current) return;
+    orderIdRef.current = orderId;
     cancelledRef.current = false;
 
     let driverId: string | null = null;
@@ -46,6 +50,7 @@ export function useDriverLocation(orderId?: string) {
         async (loc) => {
           if (cancelledRef.current) return;
           const { latitude, longitude } = loc.coords;
+          if (!isValidCoordinate(latitude, longitude)) return;
 
           await supabase.from('driver_locations').insert({
             driver_id: driver.id,
@@ -71,6 +76,7 @@ export function useDriverLocation(orderId?: string) {
         subscription.remove();
         return;
       }
+      subscriptionRef.current?.remove();
       subscriptionRef.current = subscription;
     })();
 

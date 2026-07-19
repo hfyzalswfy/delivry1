@@ -20,7 +20,9 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
 function RootLayoutInner() {
   const initialize = useAuthStore((s) => s.initialize);
+  const isInitialized = useAuthStore((s) => s.isInitialized);
   const isLoading = useAuthStore((s) => s.isLoading);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const loadSettings = useSettingsStore((s) => s.load);
 
   useEffect(() => { initialize(); }, []);
